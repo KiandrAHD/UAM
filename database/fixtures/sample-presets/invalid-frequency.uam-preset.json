@@ -1,0 +1,14 @@
+{
+  "format": "uam-preset",
+  "schemaVersion": 1,
+  "metadata": { "name": "Subsonic Frequency" },
+  "compatibility": { "minimumUamVersion": "0.1.0", "deviceIndependent": true },
+  "audio": {
+    "preampDb": 0.0,
+    "equalizer": {
+      "bands": [
+        { "filterType": "peaking", "frequencyHz": 5.0, "gainDb": 0.0, "q": 1.0 }
+      ]
+    }
+  }
+}

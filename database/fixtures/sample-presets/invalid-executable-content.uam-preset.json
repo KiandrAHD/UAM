@@ -1,0 +1,8 @@
+{
+  "format": "uam-preset",
+  "schemaVersion": 1,
+  "metadata": { "name": "Contains Commands" },
+  "compatibility": { "minimumUamVersion": "0.1.0", "deviceIndependent": true },
+  "audio": { "preampDb": 0.0, "equalizer": { "bands": [] } },
+  "commands": ["powershell.exe -Command Write-Output unsafe"]
+}

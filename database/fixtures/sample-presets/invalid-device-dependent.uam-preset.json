@@ -1,0 +1,7 @@
+{
+  "format": "uam-preset",
+  "schemaVersion": 1,
+  "metadata": { "name": "Device Dependent Import" },
+  "compatibility": { "minimumUamVersion": "0.1.0", "deviceIndependent": false },
+  "audio": { "preampDb": 0.0, "equalizer": { "bands": [] } }
+}

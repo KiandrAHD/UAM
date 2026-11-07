@@ -1,0 +1,12 @@
+[package]
+name = "uam_dsp"
+description = "Deterministic, allocation-free-at-runtime audio DSP primitives for UAM."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+uam_domain.workspace = true

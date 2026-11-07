@@ -1,0 +1,28 @@
+{
+  "format": "uam-preset",
+  "schemaVersion": 1,
+  "metadata": {
+    "name": "Balanced Warm",
+    "author": "UAM Phase 0 Fixture",
+    "description": "A balanced profile with gentle low-frequency warmth and a soft treble lift.",
+    "createdAt": "2026-01-01T00:00:00Z",
+    "tags": ["balanced", "warm"]
+  },
+  "compatibility": {
+    "minimumUamVersion": "0.1.0",
+    "deviceIndependent": true,
+    "requiredCapabilities": []
+  },
+  "audio": {
+    "preampDb": -2.0,
+    "equalizer": {
+      "bands": [
+        { "filterType": "peaking", "frequencyHz": 60, "gainDb": 2.0, "q": 1.0 },
+        { "filterType": "peaking", "frequencyHz": 250, "gainDb": 1.0, "q": 1.0 },
+        { "filterType": "peaking", "frequencyHz": 1000, "gainDb": 0.0, "q": 1.0 },
+        { "filterType": "peaking", "frequencyHz": 4000, "gainDb": -1.0, "q": 1.0 },
+        { "filterType": "peaking", "frequencyHz": 10000, "gainDb": 1.5, "q": 1.0 }
+      ]
+    }
+  }
+}

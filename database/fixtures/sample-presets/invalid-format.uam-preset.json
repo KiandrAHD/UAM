@@ -1,0 +1,7 @@
+{
+  "format": "other-format",
+  "schemaVersion": 1,
+  "metadata": { "name": "Wrong Format" },
+  "compatibility": { "minimumUamVersion": "0.1.0", "deviceIndependent": true },
+  "audio": { "preampDb": 0.0, "equalizer": { "bands": [] } }
+}

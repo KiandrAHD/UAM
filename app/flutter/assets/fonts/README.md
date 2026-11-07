@@ -1,0 +1,1 @@
+This directory holds bundled font files. Phase 0 uses platform default fonts.

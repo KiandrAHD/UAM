@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = [
+    "uam_domain",
+    "uam_dsp",
+    "uam_preset",
+    "uam_ffi",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+authors = ["KiandrAHD"]
+repository = "https://github.com/KiandrAHD/UAM"
+
+[workspace.dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+uam_domain = { path = "uam_domain" }
+uam_dsp = { path = "uam_dsp" }
+uam_preset = { path = "uam_preset" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"

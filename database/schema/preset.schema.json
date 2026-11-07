@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/KiandrAHD/UAM/schema/preset.schema.json",
+  "title": "UAM Portable Preset",
+  "description": "Versioned, device-independent audio preset exchanged as a .uam-preset.json file. The document contains data only: no executable content, commands, credentials, pairing secrets, or vendor protocol frames.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schemaVersion", "metadata", "compatibility", "audio"],
+  "properties": {
+    "format": {
+      "const": "uam-preset",
+      "description": "Stable format identifier."
+    },
+    "schemaVersion": {
+      "const": 1,
+      "description": "Preset schema version implemented by this document."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "\\S",
+          "description": "Display name."
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Author label chosen by the user; not an account identity."
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Free-text description."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 40,
+          "description": "RFC 3339 creation timestamp."
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "description": "Search and description tags."
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimumUamVersion", "deviceIndependent"],
+      "properties": {
+        "minimumUamVersion": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+          "description": "Oldest UAM version expected to understand this preset."
+        },
+        "deviceIndependent": {
+          "const": true,
+          "description": "Schema version 1 presets are device-independent by definition."
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9._:-]{1,64}$"
+          },
+          "description": "Feature identifiers the preset expects the target to support."
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preampDb", "equalizer"],
+      "properties": {
+        "preampDb": {
+          "type": "number",
+          "minimum": -24,
+          "maximum": 12,
+          "description": "Preamp gain in decibels."
+        },
+        "equalizer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bands"],
+          "properties": {
+            "bands": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "$ref": "#/$defs/eqBand"
+              },
+              "description": "Ordered equalizer filter cascade."
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "eqBand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filterType", "frequencyHz", "gainDb", "q"],
+      "properties": {
+        "filterType": {
+          "type": "string",
+          "enum": ["peaking", "low_shelf", "high_shelf"],
+          "description": "Filter shape."
+        },
+        "frequencyHz": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 20000,
+          "description": "Centre or corner frequency in hertz."
+        },
+        "gainDb": {
+          "type": "number",
+          "minimum": -24,
+          "maximum": 24,
+          "description": "Band gain in decibels."
+        },
+        "q": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 10,
+          "description": "Quality factor, or shelf transition-width control."
+        }
+      }
+    }
+  }
+}

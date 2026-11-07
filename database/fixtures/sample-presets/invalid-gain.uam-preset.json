@@ -1,0 +1,14 @@
+{
+  "format": "uam-preset",
+  "schemaVersion": 1,
+  "metadata": { "name": "Excessive Gain" },
+  "compatibility": { "minimumUamVersion": "0.1.0", "deviceIndependent": true },
+  "audio": {
+    "preampDb": 0.0,
+    "equalizer": {
+      "bands": [
+        { "filterType": "peaking", "frequencyHz": 1000, "gainDb": 30.0, "q": 1.0 }
+      ]
+    }
+  }
+}

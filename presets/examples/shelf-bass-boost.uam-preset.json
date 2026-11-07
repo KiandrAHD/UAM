@@ -1,0 +1,25 @@
+{
+  "format": "uam-preset",
+  "schemaVersion": 1,
+  "metadata": {
+    "name": "Shelf Bass Boost",
+    "author": "UAM Phase 0 Fixture",
+    "description": "Low-shelf bass lift with a restrained high-shelf cut, used to exercise both shelving filter shapes.",
+    "createdAt": "2026-02-14T12:30:00Z",
+    "tags": ["bass", "shelf"]
+  },
+  "compatibility": {
+    "minimumUamVersion": "0.1.0",
+    "deviceIndependent": true,
+    "requiredCapabilities": ["dsp.eq.peaking", "dsp.eq.shelving"]
+  },
+  "audio": {
+    "preampDb": -4.5,
+    "equalizer": {
+      "bands": [
+        { "filterType": "low_shelf", "frequencyHz": 120, "gainDb": 6.0, "q": 0.707 },
+        { "filterType": "high_shelf", "frequencyHz": 8000, "gainDb": -2.5, "q": 0.707 }
+      ]
+    }
+  }
+}

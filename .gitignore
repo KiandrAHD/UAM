@@ -1,0 +1,50 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+app/flutter/build/
+app/flutter/.flutter-plugins
+app/flutter/.flutter-plugins-dependencies
+app/flutter/.flutter_tool_state
+app/flutter/windows/flutter/ephemeral/
+app/flutter/linux/flutter/ephemeral/
+app/flutter/macos/Flutter/ephemeral/
+app/flutter/ios/Flutter/ephemeral/
+app/flutter/android/.gradle/
+app/flutter/android/local.properties
+
+# Rust
+**/target/
+*.pdb
+*.dSYM/
+
+# Native bridge build outputs
+app/flutter/windows/runner/native/
+app/flutter/macos/Runner/Native/
+app/flutter/linux/runner/native/
+app/flutter/android/app/src/main/jniLibs/
+app/flutter/ios/Runner/Native/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local data and diagnostics
+*.sqlite
+*.sqlite3
+*.db
+*.log
+*.trace
+.env
+.env.*
+!.env.example
+
+# Generated inventory and reports containing machine-specific state
+docs/platform/windows-endpoint-inventory.txt
+
+# Temporary files
+*.tmp
+*.swp

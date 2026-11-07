@@ -1,0 +1,7 @@
+{
+  "format": "uam-preset",
+  "schemaVersion": 2,
+  "metadata": { "name": "Future Version" },
+  "compatibility": { "minimumUamVersion": "0.1.0", "deviceIndependent": true },
+  "audio": { "preampDb": 0.0, "equalizer": { "bands": [] } }
+}

@@ -1,0 +1,21 @@
+{
+  "format": "uam-preset",
+  "schemaVersion": 1,
+  "metadata": {
+    "name": "Neutral Reference",
+    "author": "UAM Phase 0 Fixture",
+    "description": "Zero preamp and no bands. Useful for verifying that a valid preset may contain an empty equalizer list.",
+    "createdAt": "2026-03-01T08:00:00Z",
+    "tags": ["neutral", "reference"]
+  },
+  "compatibility": {
+    "minimumUamVersion": "0.1.0",
+    "deviceIndependent": true
+  },
+  "audio": {
+    "preampDb": 0.0,
+    "equalizer": {
+      "bands": []
+    }
+  }
+}
