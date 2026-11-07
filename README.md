@@ -2,21 +2,21 @@
 
 Universe Audio Management (UAM) is a local-first, universal-first audio management application built around a Flutter UI, a shared Rust core, and capability-gated native platform adapters.
 
-Phase 0 establishes technical evidence, not a finished product. The repository contains:
+Phase 1 establishes the responsive UI foundation on top of Phase 0 technical evidence. The repository contains:
 
-- A Flutter application shell at [`app/flutter/`](app/flutter/).
+- A Flutter application at [`app/flutter/`](app/flutter/) with a reusable design system, responsive shell, and seven configuration modules.
 - A Rust workspace at [`crates/`](crates/) with domain validation, real biquad DSP, preset validation, and a narrow C ABI.
 - Versioned `.uam-preset.json` schema and fixtures at [`database/`](database/).
-- Compatibility, platform, ADR, testing, and Phase 0 findings under [`docs/`](docs/).
+- Compatibility, platform, ADR, testing, and phase reports under [`docs/`](docs/).
 
-The current Flutter screen reports structured metadata from the compiled Rust core. It explicitly reports `configuration_only`; it does not claim system-wide equalization or device control.
+The Flutter application reports structured metadata from the compiled Rust core. It explicitly reports `configuration_only`; it does not claim system-wide equalization, live device discovery, or hardware control. Device and hardware UI stays unavailable until a verified platform adapter reports capability evidence.
 
 ## Requirements
 
 - Flutter stable and Dart compatible with `app/flutter/pubspec.yaml`.
 - Rust stable with Cargo.
 - Windows development requires the Flutter Windows C++ workload; Phase 0 validation used Rust's GNU target with `rust-lld` because the host's MSVC linker components were incomplete.
-- For mobile targets, install the relevant Android or Apple toolchains. Phase 0 does not build mobile targets.
+- For mobile targets, install the relevant Android or Apple toolchains. Phase 1 does not build or verify mobile targets.
 
 Verified environment and setup commands are in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
@@ -53,6 +53,7 @@ UAM reports a feature only after the relevant operating-system API and hardware 
 
 - [Documentation index](docs/README.md)
 - [Phase 0 report](docs/PHASE_0_REPORT.md)
+- [Phase 1 report](docs/PHASE_1_REPORT.md)
 - [Compatibility matrix](docs/COMPATIBILITY.md)
 - [Development setup](docs/DEVELOPMENT.md)
 - [Architecture](docs/Architecture.md)

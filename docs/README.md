@@ -17,9 +17,10 @@
 7. `DEVELOPMENT.md` — Setup, build, test, and troubleshooting guide.
 8. `DEPENDENCY_AUDIT.md` — Phase 0 dependency and license inventory.
 9. `PHASE_0_REPORT.md` — Phase 0 results, evidence, blockers, and next steps.
-10. `adr/` — Architecture Decision Records (ADR-001 through ADR-006).
-11. `platform/` — Per-platform notes for Windows, macOS, Linux, Android, and iOS.
-12. `testing/` — Test strategy, audio testing method, and hardware matrix.
+10. `PHASE_1_REPORT.md` — Phase 1 foundation, responsive UX, state model, tests, and limitations.
+11. `adr/` — Architecture Decision Records (ADR-001 through ADR-006).
+12. `platform/` — Per-platform notes for Windows, macOS, Linux, Android, and iOS.
+13. `testing/` — Test strategy, audio testing method, and hardware matrix.
 
 ## Core product decisions
 

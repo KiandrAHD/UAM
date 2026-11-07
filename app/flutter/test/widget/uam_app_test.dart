@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:uam/app/uam_app.dart';
 import 'package:uam/bridge/rust_api.dart';
@@ -37,11 +36,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Rust core connected'), findsOneWidget);
-    expect(find.text('0.1.0'), findsOneWidget);
+    expect(find.text('Audio workspace'), findsOneWidget);
+    expect(find.text('Ready, not processing'), findsOneWidget);
     expect(find.text('Configuration only'), findsOneWidget);
-    expect(find.text('dsp.eq.peaking'), findsOneWidget);
-    expect(find.text('Supported prototype functionality'), findsOneWidget);
+    expect(find.text('Rust core'), findsOneWidget);
+    expect(find.text('Not verified'), findsWidgets);
   });
 
   testWidgets('renders a safe failure state when the bridge is missing', (
@@ -61,11 +60,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Rust core unavailable'), findsOneWidget);
-    expect(
-      find.text('The UAM Rust core library was not found.'),
-      findsOneWidget,
-    );
-    expect(find.byType(FilledButton), findsOneWidget);
+    expect(find.text('Audio workspace'), findsOneWidget);
+    expect(find.text('No device selected'), findsWidgets);
+    expect(find.text('Not processing'), findsOneWidget);
+    expect(find.text('Error'), findsWidgets);
   });
 }

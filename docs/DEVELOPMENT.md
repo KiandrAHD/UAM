@@ -1,13 +1,13 @@
 # UAM Development Guide
 
-**Phase:** 0
+**Phase:** 1
 **Applies to:** the monorepo at `UAM/`
 
 ## 1. Repository layout
 
 | Path | Purpose |
 |---|---|
-| `app/flutter/` | Flutter application shell, bridge, tests |
+| `app/flutter/` | Flutter application, design system, bridge, tests |
 | `crates/` | Rust workspace (`uam_domain`, `uam_dsp`, `uam_preset`, `uam_ffi`) |
 | `database/` | Preset schema, fixtures, migration notes |
 | `presets/` | Example presets and schema pointers |
@@ -15,10 +15,10 @@
 | `tools/audio_diagnostics/` | Read-only Windows MMDevice probe |
 | `docs/` | PRD, architecture, ADRs, platform and testing docs |
 
-See `docs/Structure_File.md` for the full intended tree. Only the Phase 0
-subset exists; future folders are created when their phase begins.
+See `docs/Structure_File.md` for the actual Phase 1 tree. Future feature folders
+are created when their phase begins.
 
-## 2. Toolchain versions (Phase 0)
+## 2. Toolchain versions (Phase 1)
 
 | Tool | Version used |
 |---|---|
@@ -128,8 +128,10 @@ Set-Location ../..
 ```
 
 The live bridge test (`test/integration/rust_bridge_test.dart`) loads the
-compiled DLL if present and is skipped otherwise; build the Rust library first
-to exercise it.
+compiled DLL if present; build the Rust library first to exercise it. Phase 1
+also tests the responsive shell at compact/mobile/tablet/desktop widths and
+covers module navigation, capability-safe controls, preset import validation,
+and appearance preferences.
 
 ### Preset fixtures
 
@@ -176,6 +178,15 @@ When changing the ABI:
 
 `flutter_rust_bridge` codegen is deferred; see `scripts/codegen/README.md`.
 
+- Phase 1 uses `ChangeNotifier` plus `InheritedNotifier` (`UamAppController` and
+  `UamAppScope`) and adds no state-management dependency.
+- `UamShell` uses named routes and the required desktop/tablet/mobile breakpoints.
+- Preset imports are validated locally by a Dart mirror of schema v1 because no
+  preset-validation FFI symbol exists in the current ABI. The UI does not claim
+  Rust validation.
+- No device discovery, live audio backend, Bluetooth scanner, SQLite persistence,
+  or cloud/auth service is included in Phase 1.
+
 ## 8. Adding a Rust crate
 
 1. Add it under `crates/` and to `crates/Cargo.toml` `members`.
@@ -214,6 +225,7 @@ When changing the ABI:
 ## 12. Branch and commit policy
 
 - Phase 0 work is on `feat/phase-0-technical-validation`.
+- Phase 1 work is on `feat/phase-1-foundation-ux`.
 - Do not force-push or rewrite shared history.
 - Keep commits scoped; do not commit artifacts or secrets.
 - Do not merge or push without explicit approval.

@@ -8,6 +8,52 @@ This document proposes a maintainable monorepo. The structure is intentionally m
 
 ---
 
+## Phase 1 actual structure (2026-11-07)
+
+The following subset exists after Phase 1. It is the authoritative current tree;
+the larger proposal in §1 remains the long-term target.
+
+```text
+app/flutter/
+├── assets/fonts/Inter-Variable.ttf
+├── lib/
+│   ├── main.dart
+│   ├── bootstrap.dart
+│   ├── app/
+│   │   ├── uam_app.dart
+│   │   ├── config/app_config.dart
+│   │   ├── router/{app_router.dart,app_routes.dart}
+│   │   ├── shell/{uam_destinations,uam_mobile_navigation,uam_shell,uam_sidebar,uam_top_bar}.dart
+│   │   ├── state/uam_app_controller.dart
+│   │   └── theme/app_theme.dart
+│   ├── bridge/{rust_api.dart,generated/uam_ffi_bindings.dart}
+│   ├── core/{constants,errors,logging,result,utils}/
+│   ├── design_system/
+│   │   ├── components/{uam_components,uam_layout,uam_processing_ring,uam_response_graph}.dart
+│   │   ├── theme/uam_theme.dart
+│   │   └── tokens/{uam_breakpoints,uam_colors,uam_motion,uam_radii,uam_shadows,uam_spacing,uam_typography}.dart
+│   ├── features/
+│   │   ├── dashboard/presentation/dashboard_page.dart
+│   │   ├── device_manager/{application/device_controller,data/device_repository,presentation/device_manager_page}.dart
+│   │   ├── equalizer/{application/equalizer_controller,presentation/equalizer_page}.dart
+│   │   ├── audio_engine/{application/engine_controller,domain/diagnostic_entry,presentation/audio_engine_page}.dart
+│   │   ├── hardware_controls/presentation/hardware_controls_page.dart
+│   │   ├── presets/{application/preset_library_controller,presentation/presets_page}.dart
+│   │   └── settings/presentation/{settings_page,rust_core_proof_page}.dart
+│   ├── platform/{audio,bluetooth,permissions,share}/
+│   └── shared/{models,utils}/
+└── test/
+    ├── support/test_harness.dart
+    ├── unit/
+    ├── widget/
+    └── integration/
+```
+
+Not present yet: `features/audio_lab/`, SQLite storage, real platform audio
+adapters, device adapters, Bluetooth scanning, and native file picking.
+
+---
+
 ## 1. Proposed Repository Tree
 
 ```text
@@ -33,6 +79,7 @@ UAM/
 │   ├── DEVELOPMENT.md
 │   ├── DEPENDENCY_AUDIT.md
 │   ├── PHASE_0_REPORT.md
+│   ├── PHASE_1_REPORT.md
 │   ├── RELEASE.md
 │   │
 │   ├── adr/

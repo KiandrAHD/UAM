@@ -409,3 +409,30 @@ Phase 0 records ADR-001 through ADR-006 under `docs/adr/`.
 - A generic abstraction can become leaky if platform differences are hidden.
 
 Mitigation: expose capability and processing-scope models explicitly rather than forcing every platform into a false common denominator.
+
+## 16. Phase 1 implementation notes
+
+Phase 1 implements the presentation and application foundation only. It follows
+the boundaries above but deliberately leaves the audio, device, persistence, and
+network layers unimplemented.
+
+- **State management:** `UamAppController` (a `ChangeNotifier`) is exposed through
+  `UamAppScope` (`InheritedNotifier`). This adds no third-party state dependency.
+  Feature controllers own engine, device, equalizer, and preset-library state.
+- **App rebuild boundary:** the `MaterialApp` rebuilds only for appearance
+  preference changes; feature updates propagate through the inherited notifier.
+  This keeps navigation stable while configuration state changes.
+- **Routing:** named routes with one responsive `UamShell` around every module.
+- **Design system:** typed tokens and a `ThemeExtension` provide dark, light, and
+  system appearance. The dark palette comes from `design_uam.md`; the light
+  palette is a documented derivative.
+- **Bridge:** `EngineInfoGateway`, `RustApi`, and ABI `1` are unchanged. The
+  reported scope remains `configuration_only`.
+- **Presets:** `.uam-preset.json` schema v1 is parsed by a strict Dart mirror and
+  exercised against repository fixtures. There is no FFI preset-validation
+  symbol yet, so Rust validation is not claimed.
+- **Not implemented:** SQLite tables from §7, the audio pipeline from §5, real
+  device discovery from §6, and any network service. Their interfaces remain
+  future work.
+
+See `docs/PHASE_1_REPORT.md` for the test evidence and explicit limitations.

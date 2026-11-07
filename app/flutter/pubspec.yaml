@@ -1,5 +1,5 @@
 name: uam
-description: Universe Audio Management Phase 0 application shell and Flutter-Rust bridge proof of concept.
+description: Universe Audio Management Phase 1 foundation, responsive UI, and Flutter-Rust bridge integration.
 publish_to: "none"
 version: 0.1.0+1
 
@@ -20,3 +20,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
