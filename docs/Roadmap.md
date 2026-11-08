@@ -301,6 +301,23 @@ Deliver a mobile version using supported Android APIs.
 - Audio features are accurately scoped.
 - Bluetooth discovery and device controls are tested on representative hardware.
 
+### Phase 7 progress (2026-11-08) — platform support and Rust FFI only
+
+Status: **implemented and built locally; not yet device-validated.**
+
+- Android Flutter project configured with the Flutter 3.44.6 template
+  (AGP 9.0.1, Kotlin 2.3.20, Gradle 9.1.0); application ID `com.kiandrahd.uam`.
+- `scripts/build/build_android_rust.ps1` cross-compiles `uam_ffi` for
+  `arm64-v8a` (plus optional `armeabi-v7a`/`x86_64`) and packs
+  `libuam_ffi.so` into `jniLibs/<abi>/`.
+- Dart FFI loader resolves the bundled Android SONAME while preserving Windows,
+  macOS, and Linux behavior; ABI stays `1`.
+- A debug APK builds and contains `lib/arm64-v8a/libuam_ffi.so`.
+- **Not done:** any Android audio backend, device discovery, Bluetooth, or
+  system-wide processing. The processing scope stays `configuration_only`.
+- **Not validated:** physical-device and emulator runs. See
+  `docs/ANDROID_BUILD_REPORT.md` and `docs/ANDROID_SETUP.md`.
+
 ## 11. Phase 8 — iOS
 
 ### Objectives

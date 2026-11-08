@@ -26,6 +26,8 @@
 16. `adr/` — Architecture Decision Records (ADR-001 through ADR-007).
 17. `platform/` — Per-platform notes for Windows, macOS, Linux, Android, and iOS.
 18. `testing/` — Test strategy, audio testing method, hardware matrix, and measured DSP benchmarks (`BENCHMARKS.md`).
+19. `ANDROID_SETUP.md` — Android SDK/NDK setup, Rust target installation, build script usage, native library packaging, and device testing.
+20. `ANDROID_BUILD_REPORT.md` — Android platform-support implementation status, build evidence, ABI verification, and explicit limitations.
 
 ## Core product decisions
 

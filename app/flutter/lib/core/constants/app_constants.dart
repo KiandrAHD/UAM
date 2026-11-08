@@ -10,4 +10,20 @@ abstract final class AppConstants {
   static const String presetExtension = '.uam-preset.json';
   static const String presetMimeType = 'application/json';
   static const String ffiLibraryEnvironmentVariable = 'UAM_FFI_LIBRARY_PATH';
+
+  /// Bundled Android native library file name.
+  ///
+  /// Android packages native libraries under the APK's `lib/<abi>/` directory,
+  /// so only the bare SONAME is needed at load time. The Android dynamic linker
+  /// resolves it against the installed native library directory.
+  static const String androidNativeLibraryName = 'libuam_ffi.so';
+
+  /// Bundled Windows native library file name.
+  static const String windowsNativeLibraryName = 'uam_ffi.dll';
+
+  /// Bundled macOS native library file name.
+  static const String macosNativeLibraryName = 'libuam_ffi.dylib';
+
+  /// Bundled Linux native library file name.
+  static const String linuxNativeLibraryName = 'libuam_ffi.so';
 }
