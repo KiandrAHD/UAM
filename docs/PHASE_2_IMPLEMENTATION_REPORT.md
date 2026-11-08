@@ -2,12 +2,17 @@
 
 **Date:** 2026-11-08  
 **Branch:** `feat/phase-2-dsp-foundation` (created from `main`, `22040fe`)  
-**Status:** Phase 2.1–2.2 implemented and tested; Phase 2.3–2.x not started  
-**Scope:** audio format model + validated DSP configuration DTO + control-thread Equalizer reconfiguration + real-time hand-off design (documented, not implemented)
+**Status:** Phase 2.1–2.2 implemented and tested; Phase 2.3A–2.3D + 2.6 completed in `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md`  
 
 This report covers **Phase 2.1 (Audio Format Model)** and **Phase 2.2 (DSP
 Configuration Engine)** only. It does not claim the limiter, FFI symbols, Flutter
 DSP controller, benchmark suite, or audio backend, which are later milestones.
+
+> **Follow-up:** Phase 2.3A–2.3D (preset adapter, peak metering, limiter,
+> pipeline, numerical safety) and Phase 2.6 (benchmarking) are now implemented
+> and tested. See `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md` and
+> `docs/PHASE_2_3_DESIGN.md`. The remaining blockers below are updated
+> accordingly; the real-time hand-off and audio backend are still open.
 
 ## Executive summary
 
@@ -237,39 +242,51 @@ app/flutter/build/windows/x64/runner/Debug/uam.exe
 
 ## 7. Remaining blockers
 
+Updated after Phase 2.3A–2.3D + 2.6 (see `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md`):
+
 | Item | Status |
 |---|---|
 | Parameter updates do not block the audio callback | **Unmet** — no callback exists; design recorded in ADR-007 |
-| Performance acceptable on the reference machine | **Unmet** — no benchmark suite yet |
-| Limiter signal processing | Not implemented (metadata only) |
-| Preset → DSP adapter (`Preset::to_dsp_config`) | Not implemented |
+| Performance acceptable on the reference machine | **Met** — Criterion suite; EQ + limiter 1.223 % of one core (`docs/testing/BENCHMARKS.md`) |
+| Limiter signal processing | **Implemented + tested** (`uam_dsp::Limiter`) |
+| Preset → DSP adapter (`Preset::to_dsp_config`) | **Implemented + tested** (`uam_preset::adapter`) |
+| Peak metering + clipping detection | **Implemented + tested** (`uam_dsp::PeakMeter`) |
+| Processing pipeline | **Implemented + tested** (`uam_dsp::DspPipeline`) |
+| Denormal + allocation-safety tests | **Implemented + tested** (`safety_tests.rs`, `allocation_tests.rs`) |
+| Concurrent-update (lock-free) test | Not implemented (needs prepared-state hand-off) |
 | DSP FFI symbols / Flutter DSP controller | Not implemented (additive ABI work, deferred) |
-| Denormal, allocation-count, and concurrent-update tests | Not implemented (need prepared-state hand-off) |
 | Audio backend seam (Windows WASAPI) | Not implemented (Phase 4) |
 
 ## 8. Phase 2.3 implementation proposal
 
-Proposed next milestone, in dependency order:
+Proposed next milestone, in dependency order. Items 1, 4, and 5 are now
+**completed** (see `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md`); items 2, 3
+(concurrent-update test), and 6 remain open.
 
 1. **`Preset::to_dsp_config`** in `uam_preset` — one validation path from a
    portable preset to a `DspConfig`, reusing `FilterType → FilterKind`.
+   **Done** (`uam_preset::adapter`).
 2. **Prepared-state hand-off** per ADR-007 — a `PreparedState` type in the DSP
    crate plus a bounded single-owner transfer owned by a future `uam_audio`
    crate; no `unsafe` in the DSP crate.
 3. **Real-time safety tests** — allocation-count test (custom `GlobalAlloc`),
    concurrent `apply_config` + processing test, denormal input test
-   (`f64::MIN_POSITIVE / 4`), long-run drift test.
+   (`f64::MIN_POSITIVE / 4`), long-run drift test. **Mostly done** — allocation,
+   denormal, and long-run tests are implemented; the concurrent-update test
+   remains open pending a hand-off implementation.
 4. **Simplified dynamics** — peak/clipping detection and the limiter algorithm
    (feed-forward gain reduction at the configured ceiling) with tests; then
-   enable `LimiterConfig` in the processing path.
+   enable `LimiterConfig` in the processing path. **Done** (`Limiter`,
+   `PeakMeter`, `DspPipeline`).
 5. **Benchmark suite** — `criterion` CPU cost (`ns/frame` at 48 kHz stereo,
    0/1/5/10/32 bands, 128…4096-frame blocks) and latency; record a committed
-   baseline in `docs/testing/BENCHMARKS.md`.
+   baseline in `docs/testing/BENCHMARKS.md`. **Done.**
 6. **Additive FFI + Flutter controller** — only after the above, and only with a
    documented ABI policy (`uam_dsp_api_version`), mirroring the readiness plan.
 
 Each step stays independently testable and preserves the ABI, the 64 Rust tests,
-and the 68 Flutter tests.
+and the 68 Flutter tests. Phase 2.3 preserves them and expands the Rust suite to
+127 tests; the Flutter suite remains 68 tests.
 
 ## 9. Files changed in this milestone
 

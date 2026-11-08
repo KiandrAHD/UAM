@@ -2,8 +2,37 @@
 
 **Date:** 2026-11-08  
 **Branch:** `feat/phase-1-1-stabilization` (audit branch)  
-**Status:** audit complete; Phase 2 design proposed; implementation not started  
-**Last updated:** 2026-11-08 — Phase 2.1–2.2 implemented; see the progress update below and `docs/PHASE_2_IMPLEMENTATION_REPORT.md`.
+**Status:** audit complete; Phase 2 design proposed; implementation in progress  
+**Last updated:** 2026-11-08 — Phase 2.3A–2.3D and 2.6 implemented; see the Phase 2.3 update below and `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md`.
+
+## Phase 2.3A–2.3D + 2.6 progress update (2026-11-08)
+
+Items 5, 7, and 11 of this plan (limiter + clipping reporting, preset adapter,
+benchmarks) are now **implemented and tested** on `feat/phase-2-3-complete-dsp`,
+together with a peak meter, a processing pipeline, numerical-safety tests, and a
+steady-state allocation test. The clock/CPU benchmark target is met on the
+reference machine.
+
+| # | Work item | Status |
+|---|---|---|
+| 5 | Limiter prototype + clipping reporting | **Done** — `uam_dsp::Limiter` + `PipelineReport` (feed-forward, zero-look-ahead, channel-linked) |
+| 7 | `Preset::to_dsp_config` | **Done** — `uam_preset::adapter`, two-authority validation |
+| 11 | `benches/` CPU benchmark | **Done** — Criterion suite; < 2 % of one core target met |
+| 2.3B | Peak meter + clipping detection | **Done** — `uam_dsp::PeakMeter` (sample peak only) |
+| 4 | Denormal + allocation safety tests | **Done** — `safety_tests.rs` + `allocation_tests.rs` (lock-free concurrency test still open) |
+| 6 | Crossfade bypass + preamp ramp | **Not started** |
+| 8–10 | FFI DSP symbols, Flutter DSP controller | **Not started** |
+
+Exit-criteria status after 2.3 + 2.6:
+
+| Exit criterion | Status |
+|---|---|
+| DSP tests pass for supported sample rates and channel layouts | **Met** — mono/stereo via 127 Rust tests |
+| No unexpected NaN/infinite values for validated inputs | **Met** — `safety_tests.rs` |
+| Parameter updates do not block the audio callback | **Not met** — no callback exists; design fixed in ADR-007 |
+| Performance is acceptable on the MVP reference machine | **Met** — `docs/testing/BENCHMARKS.md` (EQ + limiter 1.223 % of one core) |
+
+See `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md` and `docs/PHASE_2_3_DESIGN.md`.
 
 ## Phase 2.1–2.2 progress update (2026-11-08)
 
@@ -16,16 +45,23 @@ the record; the status of each plan item is:
 | 1 | `SampleFormat` in `AudioConfig` (additive constructor) | **Done** — boundary vs internal model, `with_format`, tested |
 | 2 | `DspConfig` + `LimiterConfig` + `validate` | **Done** — `uam_dsp::config`, full validation, tested |
 | 3 | `Equalizer::from_config` / `apply_config` | **Done** — control-thread replacement, failure-safe, tested |
-| 4–12 | Hand-off, limiter, crossfade, preset adapter, FFI, Flutter, benches, ADR | Not started (see `docs/PHASE_2_IMPLEMENTATION_REPORT.md` §8) |
+| 4 | Denormal + allocation + safety tests | **Done** — numerical safety, long-run, and isolated allocation tests |
+| 5 | Limiter + clipping reporting | **Done** — `Limiter`, `PeakMeter`, `DspPipeline` |
+| 6 | Crossfade bypass + preamp ramp | Not started |
+| 7 | Preset adapter | **Done** — `Preset::to_dsp_config` |
+| 8–10 | FFI symbols, Flutter DSP controller | Not started |
+| 11 | Benchmarks | **Done** — Criterion suite and measured report |
+| 12 | Documentation / ADR | **Done** — design and implementation reports |
 
 Two clarifications against this audit:
 
 - The `DspConfig` DTO is **not** serde-serialized yet. It is an in-memory
   validated DTO; JSON representation is deferred with the FFI symbols (item 8),
   so no serde dependency was added to `uam_dsp`.
-- The `LimiterConfig` field is present but **metadata only**; no limiter
-  processor exists (as this audit requires). A test proves enabling it does not
-  change output.
+- The `LimiterConfig` field was metadata only in Phase 2.2. Phase 2.3 now
+  provides the separate `Limiter` processor and `DspPipeline`; the existing
+  equalizer metadata test still proves that `Equalizer` itself remains
+  limiter-agnostic.
 
 Exit-criteria status after 2.1–2.2:
 
@@ -128,7 +164,7 @@ From `docs/Architecture.md` §5 (DSP design requirements) and §10 (Threading):
 |---|---|---|
 | Sample formats other than `f64` (no `f32`, no integer) | AUD-001; real audio backends deliver `f32`/`i16` | Architecture §5 "Support validated sample formats" |
 | Channel layouts beyond mono/stereo (no 5.1, no 7.1) | Future multichannel; Phase 2 scope can stay stereo | Architecture §5 "validated channel layouts" |
-| Limiter / ceiling / soft clipping | AUD-006 (P1); AUD-002 clipping warnings | Roadmap §5 "Prototype limiter behavior"; Architecture §5 "Define clipping behavior" |
+| Limiter / ceiling / soft clipping | **Implemented: sample-peak limiter**; true peak / analogue soft clipping deferred | AUD-006 (P1); Roadmap §5; Architecture §5 |
 | Peak / clipping metering | AUD-006; Architecture §5 `Meter[Peak / Clipping Meter]` | Roadmap §7 Phase 4 instrumentation |
 | Denormal protection and test | Architecture §5 "Test for denormals" | — |
 | Parameter smoothing / ramping | Click-free gain changes; Architecture §5 "bypass without abrupt transitions" | — |
@@ -138,7 +174,7 @@ From `docs/Architecture.md` §5 (DSP design requirements) and §10 (Threading):
 | FFI config/processing control symbols | Roadmap §5 "Flutter integration for editing DSP parameters" | — |
 | Audio backend / stream abstraction and callback ownership | Phase 4; Phase 2 must define the seam | Architecture §10 "DSP runs in the native audio processing context" |
 | Preset → DSP adapter in Rust | Roadmap §5; Phase 3 import path | — |
-| CPU / latency / glitch benchmark suite | Roadmap §5 exit criteria "Performance is acceptable on the MVP reference machine" | Architecture §5 "Benchmark latency and CPU use on reference hardware" |
+| CPU / latency / glitch benchmark suite | **Implemented: CPU benchmark; backend latency/glitch harness deferred** | Roadmap §5; Architecture §5 |
 | Property / fuzz tests for parameter and preset inputs | Architecture §13 "Property/fuzz tests for imported JSON" | — |
 | Long-run stability test (no drift, no denormal lock-up) | Roadmap §5 "glitch-free operation" | — |
 | Multichannel downmix/upmix policy | Future; not Phase 2 | — |
@@ -160,10 +196,11 @@ From `docs/Architecture.md` §5 (DSP design requirements) and §10 (Threading):
 | DSP tests pass for supported sample rates and channel layouts | **Partial** — tests cover 44.1/48 kHz stereo and 8 kHz mono; not all supported rates | `dsp_tests.rs:124-136` |
 | No unexpected NaN/infinite values for validated inputs | **Met** | `dsp_tests.rs:108-121`; `filters/mod.rs:279-284` |
 | Parameter updates do not block the audio callback | **Not met** — no audio callback exists; no parameter hand-off | — |
-| Performance is acceptable on the MVP reference machine | **Not met** — no benchmark suite exists | no `benches/` in `crates/` |
+| Performance is acceptable on the MVP reference machine | **Met** — EQ + limiter is 1.223 % of one core at the target configuration | `docs/testing/BENCHMARKS.md` |
 
-Two of four exit criteria are met, one partial, one unmet. **Phase 2 is not
-ready to be declared complete from the current state.**
+Three of four exit criteria are met; the callback hand-off criterion remains
+unmet because no audio callback exists. **Phase 2 is not fully complete:** the
+FFI/Flutter DSP surface, crossfade/ramping, and backend remain deferred.
 
 ## Proposed Phase 2 design
 
@@ -532,5 +569,12 @@ existing 41 Rust tests, the existing 68 Flutter tests, and the existing honest
 > "Sample format beyond `f64`" and "Parameter validation" are now satisfied at
 > the metadata/DTO level (`f32` is a boundary format, not a native kernel).
 > The limiter, real-time hand-off, backend seam, bench suite, FFI config
-> surface, and Flutter controller remain open. See
+> surface, and Flutter controller remained open at that point. See
 > `docs/PHASE_2_IMPLEMENTATION_REPORT.md`.
+>
+> **Update after 2.3A–2.3D + 2.6:** the limiter, peak meter, processing
+> pipeline, preset adapter, numerical-safety tests, allocation-safety test, and
+> benchmark suite are now implemented and tested. The limiter row and the
+> benchmark-suite row above are satisfied; the real-time hand-off, backend seam,
+> FFI config surface, and Flutter controller remain open. See
+> `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md`.

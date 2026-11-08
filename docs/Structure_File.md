@@ -80,6 +80,44 @@ remain `#![forbid(unsafe_code)]`.
 
 ---
 
+## Phase 2.3A–2.3D + 2.6 actual structure additions (2026-11-08)
+
+Additions on `feat/phase-2-3-complete-dsp`:
+
+```text
+crates/
+  uam_dsp/src/
+    meter.rs               (new: PeakMeter, BlockPeak, linear_to_dbfs)
+    limiter.rs             (new: Limiter)
+    pipeline.rs            (new: DspPipeline, PipelineReport)
+    lib.rs                 (modified: modules + re-exports)
+    config.rs              (modified: limiter documentation)
+  uam_dsp/tests/
+    meter_tests.rs         (new: 15 tests)
+    limiter_tests.rs       (new: 20 tests)
+    pipeline_tests.rs      (new: 5 tests)
+    safety_tests.rs        (new: 9 tests)
+    allocation_tests.rs    (new: 1 test, isolated counting allocator)
+  uam_dsp/benches/
+    dsp_processing.rs      (new: Criterion bench suite)
+  uam_preset/src/
+    adapter.rs             (new: Preset::to_dsp_config, PresetConversionError)
+    lib.rs                 (modified: adapter module + re-export)
+  uam_preset/tests/
+    adapter_tests.rs       (new: 13 tests)
+
+docs/
+  PHASE_2_3_DESIGN.md
+  PHASE_2_3_IMPLEMENTATION_REPORT.md
+  testing/BENCHMARKS.md
+```
+
+No Dart source changed in Phase 2.3 + 2.6. The `uam_dsp`, `uam_domain`, and
+`uam_preset` crates remain `#![forbid(unsafe_code)]`; the only `unsafe` in the
+workspace is the `uam_ffi` boundary.
+
+---
+
 ## 1. Proposed Repository Tree
 
 ```text
@@ -127,6 +165,7 @@ UAM/
 │   └── testing/
 │       ├── TEST_STRATEGY.md
 │       ├── AUDIO_TESTING.md
+│       ├── BENCHMARKS.md
 │       └── HARDWARE_MATRIX.md
 │
 ├── app/
