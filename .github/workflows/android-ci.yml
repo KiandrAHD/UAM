@@ -1,0 +1,99 @@
+name: Android CI
+
+on:
+  push:
+    branches: ["main", "feat/**"]
+    paths:
+      - "app/flutter/**"
+      - "crates/**"
+      - "scripts/build/build_android_rust.ps1"
+      - ".github/workflows/android-ci.yml"
+  pull_request:
+    paths:
+      - "app/flutter/**"
+      - "crates/**"
+      - "scripts/build/build_android_rust.ps1"
+      - ".github/workflows/android-ci.yml"
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-arm64-debug-apk:
+    name: arm64-v8a Rust FFI and debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.6"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable and Android target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates
+
+      - name: Install Android SDK command-line tools and NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
+
+      - name: Build and package Rust FFI library
+        shell: pwsh
+        run: ./scripts/build/build_android_rust.ps1 -Abi arm64-v8a -Profile debug
+
+      - name: Verify Android native symbols
+        shell: bash
+        run: |
+          test -f app/flutter/android/app/src/main/jniLibs/arm64-v8a/libuam_ffi.so
+          "${ANDROID_SDK_ROOT}/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm" \
+            --dynamic --defined-only \
+            app/flutter/android/app/src/main/jniLibs/arm64-v8a/libuam_ffi.so | \
+            grep -E 'uam_(abi_version|get_engine_info|string_free)'
+
+      - name: Resolve Flutter dependencies
+        working-directory: app/flutter
+        run: flutter pub get
+
+      - name: Analyze Flutter app
+        working-directory: app/flutter
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        working-directory: app/flutter
+        run: flutter test
+
+      - name: Build debug APK
+        working-directory: app/flutter
+        run: flutter build apk --debug --target-platform android-arm64
+
+      - name: Verify APK contains arm64 Rust library
+        shell: bash
+        run: |
+          unzip -l app/flutter/build/app/outputs/flutter-apk/app-debug.apk | \
+            grep 'lib/arm64-v8a/libuam_ffi.so'
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: uam-android-arm64-debug-apk
+          path: app/flutter/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

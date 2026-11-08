@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:io';
 
 import '../core/constants/app_constants.dart';
 import '../core/errors/uam_failure.dart';
@@ -176,9 +177,12 @@ final class RustApi implements EngineInfoGateway {
   UamFfiBindings _openLibrary() {
     final path = RustLibraryLocator.resolve(explicitPath: libraryPath);
     if (path == null) {
-      throw const _BridgeUnavailable(
+      final buildScript = Platform.isAndroid
+          ? 'scripts/build/build_android_rust.ps1'
+          : 'scripts/build/build_rust.ps1';
+      throw _BridgeUnavailable(
         'The UAM Rust core library was not found. Build it with '
-        'scripts/build/build_rust.ps1 and retry.',
+        '$buildScript and retry.',
       );
     }
     try {
