@@ -25,11 +25,12 @@
 //!
 //! # Limiter scope
 //!
-//! [`LimiterConfig`] is **metadata only** in this milestone. No limiter
-//! signal-processing algorithm exists, and `enabled` never changes the output
-//! of [`crate::Equalizer`]. It records the intended ceiling and release time so
-//! that the later dynamics milestone and the peak/clipping meter agree on a
-//! validated contract.
+//! [`LimiterConfig`] is a **validated description** of a limiter. The
+//! signal-processing implementation lives in [`crate::limiter::Limiter`] and is
+//! composed into [`crate::pipeline::DspPipeline`]. The [`crate::Equalizer`]
+//! itself stays limiter-agnostic: it is the preamp + EQ cascade, and changing
+//! that would change its ABI-level behaviour. A configuration that carries no
+//! limiter (or a disabled one) therefore produces equalizer-only output.
 
 use uam_domain::AudioConfig;
 
@@ -39,7 +40,10 @@ use crate::validation::{
     MIN_LIMITER_CEILING_DB, MIN_LIMITER_RELEASE_MS, MIN_PREAMP_DB,
 };
 
-/// Validated limiter metadata. See the module docs: no processing is applied.
+/// Validated limiter configuration: enable flag, ceiling, and release time.
+///
+/// This is the configuration half of the limiter. The processing half is
+/// [`crate::limiter::Limiter`], which is driven by a [`crate::pipeline::DspPipeline`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LimiterConfig {
     enabled: bool,
@@ -92,7 +96,7 @@ impl LimiterConfig {
         Ok(())
     }
 
-    /// Whether the limiter is requested. Metadata only in this milestone.
+    /// Whether the limiter is requested to act on the signal.
     #[must_use]
     pub const fn enabled(&self) -> bool {
         self.enabled
