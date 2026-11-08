@@ -24,6 +24,7 @@ Every ADR uses these sections:
 | [ADR-004](ADR-004-local-first-data.md) | Local-first data and portable preset interchange | Accepted (Phase 0) |
 | [ADR-005](ADR-005-capability-based-controls.md) | Capability-based hardware controls | Accepted (principle) |
 | [ADR-006](ADR-006-windows-first-mvp.md) | Windows-first audio integration | Proposed |
+| [ADR-007](ADR-007-real-time-configuration-handoff.md) | Real-time DSP configuration hand-off | Proposed (design only; implementation deferred) |
 
 ## Naming note
 
@@ -42,10 +43,10 @@ but uses the decision titles below. The mapping is:
 | ADR-005 Capability-based controls | ADR-005 Capability-based controls |
 | ADR-006 Windows-first MVP | ADR-006 Windows-first audio integration |
 
-`Structure_File.md` also lists a possible ADR-007 (real-time audio thread
-safety). That topic is folded into ADR-002 and ADR-006 in this pass because the
-real-time path is not yet implemented; a dedicated ADR will be added in the
-phase that introduces a live audio backend.
+`Structure_File.md` also listed a possible ADR-007 (real-time audio thread
+safety). It is now recorded as [ADR-007](ADR-007-real-time-configuration-handoff.md)
+(real-time DSP configuration hand-off). The decision is recorded; the
+implementation is deferred to the phase that introduces a live audio backend.
 
 ## Status discipline
 

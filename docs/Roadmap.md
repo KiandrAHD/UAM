@@ -156,6 +156,21 @@ Implement a deterministic, testable audio-processing core.
 - Parameter updates do not block the audio callback.
 - Performance is acceptable on the MVP reference machine.
 
+### Progress (2026-11-08) — Phase 2.1–2.2
+
+- **Done:** audio sample-format and channel model (`SampleFormat` boundary vs
+  internal `f64` representation); validated DSP configuration DTO (`DspConfig`,
+  `LimiterConfig`); control-thread `Equalizer::from_config`/`apply_config` with
+  failure-safe replacement; documented value ranges; real-time hand-off design
+  recorded in `docs/adr/ADR-007`.
+- **Exit criteria met:** DSP tests pass for mono/stereo at 8/44.1/48/96/192/384
+  kHz (64 Rust tests); no unexpected NaN/inf for validated inputs.
+- **Still open:** parameter hand-off to a live callback, limiter algorithm,
+  preset→DSP adapter, Flutter DSP controller, benchmark suite, and the
+  performance exit criterion.
+- See `docs/PHASE_2_IMPLEMENTATION_REPORT.md` for evidence and
+  `docs/PHASE_2_READINESS.md` for the updated gap list.
+
 ## 6. Phase 3 — Local Data and Preset Exchange
 
 ### Objectives

@@ -3,6 +3,41 @@
 **Date:** 2026-11-08  
 **Branch:** `feat/phase-1-1-stabilization` (audit branch)  
 **Status:** audit complete; Phase 2 design proposed; implementation not started  
+**Last updated:** 2026-11-08 — Phase 2.1–2.2 implemented; see the progress update below and `docs/PHASE_2_IMPLEMENTATION_REPORT.md`.
+
+## Phase 2.1–2.2 progress update (2026-11-08)
+
+Items 1, 2, and 3 of the implementation plan below are now **implemented and
+tested** on `feat/phase-2-dsp-foundation`. The original audit is preserved for
+the record; the status of each plan item is:
+
+| # | Work item | Status |
+|---|---|---|
+| 1 | `SampleFormat` in `AudioConfig` (additive constructor) | **Done** — boundary vs internal model, `with_format`, tested |
+| 2 | `DspConfig` + `LimiterConfig` + `validate` | **Done** — `uam_dsp::config`, full validation, tested |
+| 3 | `Equalizer::from_config` / `apply_config` | **Done** — control-thread replacement, failure-safe, tested |
+| 4–12 | Hand-off, limiter, crossfade, preset adapter, FFI, Flutter, benches, ADR | Not started (see `docs/PHASE_2_IMPLEMENTATION_REPORT.md` §8) |
+
+Two clarifications against this audit:
+
+- The `DspConfig` DTO is **not** serde-serialized yet. It is an in-memory
+  validated DTO; JSON representation is deferred with the FFI symbols (item 8),
+  so no serde dependency was added to `uam_dsp`.
+- The `LimiterConfig` field is present but **metadata only**; no limiter
+  processor exists (as this audit requires). A test proves enabling it does not
+  change output.
+
+Exit-criteria status after 2.1–2.2:
+
+| Exit criterion | Status |
+|---|---|
+| DSP tests pass for supported sample rates and channel layouts | **Met** — mono and stereo at 8/44.1/48/96/192/384 kHz via 64 tests |
+| No unexpected NaN/infinite values for validated inputs | **Met** |
+| Parameter updates do not block the audio callback | **Not met** — no callback yet; design fixed in ADR-007 |
+| Performance is acceptable on the MVP reference machine | **Not met** — no benchmark suite yet |
+
+Overall verdict is unchanged: the engine remains a *Phase 2 in-progress* core,
+not a finished Phase 2 engine.
 
 ## Executive summary
 
@@ -491,3 +526,11 @@ not a Phase 2-ready engine. Two of four Phase 2 exit criteria are unmet. The
 proposed design above closes every gap while preserving the existing ABI, the
 existing 41 Rust tests, the existing 68 Flutter tests, and the existing honest
 `configuration_only` reporting.
+
+> **Update after 2.1–2.2:** sample-format modelling and the validated
+> `DspConfig`/`apply_config` layers are implemented; the readiness rows for
+> "Sample format beyond `f64`" and "Parameter validation" are now satisfied at
+> the metadata/DTO level (`f32` is a boundary format, not a native kernel).
+> The limiter, real-time hand-off, backend seam, bench suite, FFI config
+> surface, and Flutter controller remain open. See
+> `docs/PHASE_2_IMPLEMENTATION_REPORT.md`.

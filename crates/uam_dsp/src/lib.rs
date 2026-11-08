@@ -18,13 +18,16 @@
 //! The crate is independent of Flutter, SQLite, and operating-system audio
 //! APIs. It processes caller-owned `f64` sample buffers only.
 
+pub mod config;
 pub mod equalizer;
 pub mod filters;
 pub mod validation;
 
+pub use config::{DspConfig, LimiterConfig};
 pub use equalizer::Equalizer;
 pub use filters::{BandConfig, Biquad, BiquadCoefficients, FilterKind};
 pub use validation::{
-    DspError, MAX_BANDS, MAX_FREQUENCY_HZ, MAX_GAIN_DB, MAX_PREAMP_DB, MAX_Q, MIN_FREQUENCY_HZ,
-    MIN_GAIN_DB, MIN_PREAMP_DB, MIN_Q,
+    DspError, MAX_BANDS, MAX_FREQUENCY_HZ, MAX_GAIN_DB, MAX_LIMITER_CEILING_DB,
+    MAX_LIMITER_RELEASE_MS, MAX_PREAMP_DB, MAX_Q, MIN_FREQUENCY_HZ, MIN_GAIN_DB,
+    MIN_LIMITER_CEILING_DB, MIN_LIMITER_RELEASE_MS, MIN_PREAMP_DB, MIN_Q,
 };

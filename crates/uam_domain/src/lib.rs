@@ -8,8 +8,8 @@
 pub mod audio_config;
 
 pub use audio_config::{
-    AudioConfig, AudioConfigError, ChannelLayout, MAX_CHANNELS, MAX_SAMPLE_RATE_HZ,
-    MIN_SAMPLE_RATE_HZ,
+    AudioConfig, AudioConfigError, ChannelLayout, SampleFormat, INTERNAL_PROCESSING_FORMAT,
+    MAX_CHANNELS, MAX_SAMPLE_RATE_HZ, MIN_SAMPLE_RATE_HZ,
 };
 
 /// Human-readable product name. Shared by the UI and the native bridge.

@@ -54,6 +54,32 @@ adapters, device adapters, Bluetooth scanning, and native file picking.
 
 ---
 
+## Phase 2.1–2.2 actual structure additions (2026-11-08)
+
+Additions on `feat/phase-2-dsp-foundation`:
+
+```text
+docs/
+  PHASE_2_IMPLEMENTATION_REPORT.md            (new)
+  adr/
+    ADR-007-real-time-configuration-handoff.md (new)
+
+crates/
+  uam_domain/src/
+    audio_config.rs        (modified: SampleFormat boundary model)
+  uam_dsp/src/
+    config.rs              (new: DspConfig, LimiterConfig)
+    equalizer/mod.rs       (modified: from_config, apply_config)
+    validation.rs          (modified: limiter bounds + new errors)
+  uam_dsp/tests/
+    config_tests.rs        (new: 18 configuration tests)
+```
+
+No Dart source changed in Phase 2.1–2.2. The `uam_dsp` and `uam_domain` crates
+remain `#![forbid(unsafe_code)]`.
+
+---
+
 ## 1. Proposed Repository Tree
 
 ```text

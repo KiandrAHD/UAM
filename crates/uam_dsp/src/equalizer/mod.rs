@@ -11,6 +11,7 @@
 
 use uam_domain::AudioConfig;
 
+use crate::config::DspConfig;
 use crate::filters::{BandConfig, Biquad, BiquadCoefficients};
 use crate::validation::{DspError, MAX_BANDS, MAX_PREAMP_DB, MIN_PREAMP_DB};
 
@@ -81,6 +82,81 @@ impl Equalizer {
     #[must_use]
     pub const fn channels(&self) -> u16 {
         self.channels
+    }
+
+    /// Build a processing chain from a validated [`DspConfig`].
+    ///
+    /// This is the preferred constructor for control-thread callers: it
+    /// validates the whole configuration once and applies the bypass and
+    /// limiter metadata. Limiter metadata is recorded only; no limiter
+    /// processing is performed in this milestone.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DspError`] when [`DspConfig::validate`] fails or a band
+    /// cannot be realised at the configured sample rate.
+    pub fn from_config(config: &DspConfig) -> Result<Self, DspError> {
+        config.validate()?;
+        let mut equalizer = Self::new(config.audio(), config.bands(), config.preamp_db())?;
+        equalizer.bypassed = config.bypassed();
+        Ok(equalizer)
+    }
+
+    /// Replace the chain's parameters from a validated [`DspConfig`].
+    ///
+    /// This is a **control-thread** operation. It allocates the replacement
+    /// filter state, so it must never be called from a real-time audio
+    /// callback; a later backend applies prepared state through a
+    /// dedicated hand-off instead (see `docs/adr/ADR-007`).
+    ///
+    /// Guarantees:
+    ///
+    /// - The configuration is validated before anything is applied.
+    /// - Preparation is complete before the first field of `self` is written,
+    ///   so a rejected configuration leaves the active chain untouched.
+    /// - A sample-rate or channel-count change is rejected with
+    ///   [`DspError::ReconfigurationRequired`]; it requires an explicit engine
+    ///   reconfiguration rather than an in-place update.
+    ///
+    /// Applying a configuration resets filter memory because the coefficients
+    /// change. Parameter smoothing and click-free transitions belong to the
+    /// later parameter-transport milestone.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DspError`] when validation fails, when the audio configuration
+    /// does not match the current engine, or when a band cannot be realised.
+    pub fn apply_config(&mut self, config: &DspConfig) -> Result<(), DspError> {
+        config.validate()?;
+
+        let audio = config.audio();
+        if audio.sample_rate_hz() != self.sample_rate_hz || audio.channels() != self.channels {
+            return Err(DspError::ReconfigurationRequired {
+                active_sample_rate_hz: self.sample_rate_hz,
+                active_channels: self.channels,
+                target_sample_rate_hz: audio.sample_rate_hz(),
+                target_channels: audio.channels(),
+            });
+        }
+
+        // Prepare the replacement entirely before mutating `self`.
+        let channels = usize::from(self.channels);
+        let mut filters = Vec::with_capacity(config.band_count() * channels);
+        for band in config.bands() {
+            let coefficients = BiquadCoefficients::from_band(*band, audio)?;
+            for _ in 0..channels {
+                filters.push(Biquad::new(coefficients));
+            }
+        }
+        let bands = config.bands().to_vec();
+
+        // Commit: nothing above this line has modified `self`.
+        self.bands = bands;
+        self.filters = filters;
+        self.preamp_db = config.preamp_db();
+        self.preamp_linear = 10.0_f64.powf(config.preamp_db() / 20.0);
+        self.bypassed = config.bypassed();
+        Ok(())
     }
 
     /// Number of configured EQ bands.

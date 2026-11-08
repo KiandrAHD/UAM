@@ -2,17 +2,20 @@
 
 **Date:** 2026-11-08  
 **Branch:** `feat/phase-1-1-stabilization` (created from `main`, `684ae18`)  
-**Status:** verified; no source changes required; blockers are environment-only  
+**Status:** closed — verified on the Windows development host; the Phase 1.1 environment blocker is resolved  
+**Last updated:** 2026-11-08 (Windows host closure; see "Phase 1.1 closure update" below)
 
 ## Executive summary
 
 Phase 1.1 re-validates the Phase 1 implementation on the current host with the documented toolchain. All verification commands pass at exact counts from Phase 1. The Windows desktop build cannot complete because the Visual Studio C++ desktop workload is absent — an environment configuration issue, not a code defect.
 
+> **Closure note (2026-11-08).** The original audit below is preserved verbatim for the record. The Visual Studio "Desktop development with C++" workload has since been installed, and the Windows debug build now succeeds. See [Phase 1.1 closure update](#phase-11-closure-update-2026-11-08-windows-host). The blocker described in the original text is **resolved**; the historical failure output is retained only to document the earlier host state.
+
 Key outcomes:
 - Flutter: 68 tests pass; `flutter analyze` clean; `dart format` clean.
 - Rust: 41 tests pass; `cargo fmt` clean; `cargo clippy` clean (GNU + rust-lld).
 - Preset fixtures: 3 valid, 8 invalid, PASSED.
-- Desktop build: fails with "Unable to find suitable Visual Studio toolchain."
+- Desktop build: *originally* failed with "Unable to find suitable Visual Studio toolchain"; **now succeeds** after installing the C++ workload (Windows debug build only).
 - No source code changes made; no regressions introduced.
 - UI/UX review confirms all four documented breakpoints implemented, capability gating honest, text-scaling interaction at 360px not explicitly tested.
 
@@ -53,6 +56,9 @@ C++ workload: ABSENT
   - C++ CMake tools: NOT FOUND
   - Windows 10 SDK: NOT FOUND
 ```
+
+> **Superseded by the closure update below.** This block records the host state
+> at the time of the original audit. The C++ workload is now installed.
 
 CMake 4.4.4 and Ninja 1.13.2 present (from WinLibs mingw64), but `link.exe` (MSVC linker) is not on PATH. Rust's GNU toolchain (`stable-x86_64-pc-windows-gnu`) + `rust-lld` bypasses this, but Flutter's Windows desktop build requires the MSVC toolchain.
 
@@ -124,6 +130,97 @@ $ flutter build windows --debug
 ```
 
 **Classification:** environment configuration error (C++ workload missing); not a code defect. Build script `scripts/build/build_rust.ps1` uses the GNU toolchain successfully for the Rust FFI library, but Flutter's Windows build toolchain check is separate.
+
+> The failure above is retained as the historical audit record. The blocker is
+> resolved in the closure update below.
+
+## Phase 1.1 closure update (2026-11-08, Windows host)
+
+The developer installed the missing Visual Studio C++ desktop workload and
+re-ran the full verification suite on the Windows development host. This section
+records the new evidence. It **supersedes** the desktop-build blocker, and
+preserves the original audit above for history.
+
+### Toolchain now verified
+
+```
+Visual Studio Community 2022 17.14.11
+Location: C:\Program Files\Microsoft Visual Studio\2022\Community
+C++ workload: INSTALLED
+  - "Desktop development with C++" workload: INSTALLED
+  - MSVC x64/x86 build tools (Microsoft.VisualStudio.Component.VC.Tools.x86.x64): INSTALLED
+  - Windows SDK: 10.0.26100.0
+
+Rust 1.99.1 (both toolchains present)
+  - stable-x86_64-pc-windows-msvc (default, active)
+  - stable-x86_64-pc-windows-gnu
+
+Flutter 3.44.6 / Dart 3.12.2
+Python 3.11.0
+```
+
+`flutter doctor -v` now reports the Visual Studio category as healthy:
+
+```
+[√] Visual Studio - develop Windows apps (Visual Studio Community 2022 17.14.11)
+    • Visual Studio at C:\Program Files\Microsoft Visual Studio\2022\Community
+    • Visual Studio Community 2022 version 17.14.36401.2
+    • Windows 10 SDK version 10.0.26100.0
+```
+
+### Commands and verified paths
+
+Flutter dependencies resolved successfully. The following commands were run from
+`app/flutter/`:
+
+```powershell
+$ dart format --output=none --set-exit-if-changed lib test   # EXIT=0; 0 changed
+$ flutter analyze                                          # EXIT=0; No issues found (61.6s)
+$ flutter test                                             # EXIT=0; 68 tests passed
+$ flutter build windows --debug                            # EXIT=0; "√ Built build\windows\x64\runner\Debug\uam.exe"
+```
+
+Verified artifact path (local, ignored by Git):
+
+```
+app/flutter/build/windows/x64/runner/Debug/uam.exe
+```
+
+The Rust FFI library was built with the documented GNU + rust-lld environment
+and copied into the Flutter runner by `scripts/build/build_rust.ps1`:
+
+```powershell
+$ powershell -File scripts/build/build_rust.ps1
+  # Built Rust FFI library: crates\target\debug\uam_ffi.dll
+  # Copied Flutter runtime library: app\flutter\windows\runner\native\uam_ffi.dll
+```
+
+Verified Rust artifact paths (local, ignored by Git):
+
+```
+crates/target/debug/uam_ffi.dll
+app/flutter/windows/runner/native/uam_ffi.dll
+```
+
+### Local verification versus CI
+
+This closure is a **local Windows verification only**.
+
+- The Windows debug build and the Rust FFI DLL build ran on the local Windows
+  host with the MSVC toolchain available. They were **not** produced or verified
+  by GitHub Actions.
+- The GitHub Actions workflows (`flutter-ci.yml`, `rust-ci.yml`) run on Ubuntu
+  runners and continue to cover format, lint, and test on Linux. They do not
+  build the Windows desktop binary and are not affected by this update.
+- No **release** build, installer, signing step, or packaged artifact was
+  produced. Only `flutter build windows --debug` was run. A debug build is not
+  a distributable release.
+
+### Generated artifacts are not committed
+
+`app/flutter/build/`, `.dart_tool/`, `crates/target/`, PDB files, and the copied
+`app/flutter/windows/runner/native/` directory remain ignored by `.gitignore`.
+No build output or temporary artifact is staged or committed by this update.
 
 ## UI/UX review against design_uam.md
 
@@ -203,8 +300,9 @@ All Phase 1 promises kept:
 
 **Severity:** environmental (not code)  
 **Type:** toolchain configuration  
-**Evidence:** `flutter doctor -v` shows `X Visual Studio is missing necessary components`; `flutter build windows` fails with "Unable to find suitable Visual Studio toolchain."  
-**Recommendation:** Install "Desktop development with C++" workload via VS Installer or pass `-DskipVisualStudioCheck` if intentionally targeting GNU-only builds. No code change needed.
+**Status:** **RESOLVED (2026-11-08)** — the "Desktop development with C++" workload was installed and the Windows debug build now succeeds. See [Phase 1.1 closure update](#phase-11-closure-update-2026-11-08-windows-host).  
+**Evidence (original):** `flutter doctor -v` showed `X Visual Studio is missing necessary components`; `flutter build windows` failed with "Unable to find suitable Visual Studio toolchain."  
+**Recommendation:** Install "Desktop development with C++" workload via VS Installer or pass `-DskipVisualStudioCheck` if intentionally targeting GNU-only builds. No code change needed. **Done:** the workload is installed; debug build verified locally; no release build produced.
 
 ### Finding 2 — Ten-band touch interaction and text scaling not explicitly tested
 
@@ -280,7 +378,7 @@ All Phase 1 promises kept:
 - [x] No new dependencies introduced
 - [x] Phase 0 and Phase 1 reports intact
 - [x] No source code changes (findings are environment, test coverage, and benchmark gaps)
-- [ ] Desktop binary built — blocked by missing toolchain
+- [x] Desktop binary built — **resolved** in the closure update: `flutter build windows --debug` succeeded on Windows (local verification, not CI, not a release build)
 - [ ] Text scaling + ten-band touch test at 360px — not implemented (Phase 2 test addition)
 - [ ] CPU/latency benchmark suite — not present (Phase 2 work)
 - [ ] Denormal DSP test — not present (Phase 2 test addition)
@@ -288,7 +386,7 @@ All Phase 1 promises kept:
 
 ## Phase 2 recommendations
 
-1. **Install VS C++ workload** before targeting Windows desktop binary builds.
+1. ~~**Install VS C++ workload** before targeting Windows desktop binary builds.~~ **Done (2026-11-08):** workload installed; Windows debug build verified locally.
 2. **Validate EQ touch interaction** at 360px physical width with text scale 2.0.
 3. **Add denormal DSP test** in `crates/uam_dsp/tests/`.
 4. **Add benchmark suite** (`criterion`) for CPU/latency measurements at 48kHz stereo.
