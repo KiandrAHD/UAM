@@ -1,7 +1,10 @@
 # Android Platform Notes — Phase 0
 
-**Status:** DOCUMENTED only. Not executed. Android toolchain is incomplete on
-this host.
+**Status:** Platform configuration, Rust cross-compilation, native library
+packaging, and Dart FFI loading are implemented and the debug APK builds
+locally. Audio backend, device discovery, and Bluetooth integration remain
+unimplemented. Physical-device and emulator validation were not performed. See
+`docs/ANDROID_SETUP.md` and `docs/ANDROID_BUILD_REPORT.md`.
 
 ## 1. Toolchain status
 

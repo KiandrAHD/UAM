@@ -483,3 +483,38 @@ attach an audio backend or a Flutter DSP controller.
 
 See `docs/PHASE_2_IMPLEMENTATION_REPORT.md` and
 `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md` for evidence.
+
+## 18. Android platform and Rust FFI packaging
+
+The Android application uses the same narrow C ABI (`uam_ffi`) as desktop.
+`uam_ffi` remains a `cdylib`; its ABI is version `1` and exports only
+`uam_abi_version`, `uam_get_engine_info`, and `uam_string_free`. Returned JSON
+is allocated by Rust and released exactly once by Dart through
+`uam_string_free`; no pointer is retained after the FFI call and no audio
+callback API crosses Dart FFI.
+
+### Build and packaging path
+
+```text
+Rust uam_ffi
+  -- cargo + NDK clang, aarch64-linux-android --> libuam_ffi.so
+  -- scripts/build/build_android_rust.ps1 -->
+app/flutter/android/app/src/main/jniLibs/arm64-v8a/libuam_ffi.so
+  -- Android Gradle packaging --> APK lib/arm64-v8a/libuam_ffi.so
+  -- Android dynamic linker --> Dart DynamicLibrary.open('libuam_ffi.so')
+```
+
+`RustLibraryLocator` detects Android and returns the bare SONAME
+`libuam_ffi.so`. It does not use desktop relative paths and does not use
+`DynamicLibrary.process()`: a packaged library is not guaranteed to be loaded
+into the process-global symbol table before the FFI bridge needs it.
+
+The supported required ABI is `arm64-v8a`; the build script can also build
+`armeabi-v7a` and `x86_64` after their Rust targets are installed. Generated
+native libraries are ignored by Git and are built locally or in CI.
+
+Android support in this phase is **FFI and application packaging only**. The
+reported processing scope stays `configuration_only`. It does not provide
+system-wide audio processing, audio capture, Bluetooth controls, or an Android
+real-time audio backend. See `docs/ANDROID_SETUP.md` and
+`docs/ANDROID_BUILD_REPORT.md` for toolchain setup and validation evidence.

@@ -54,6 +54,41 @@ adapters, device adapters, Bluetooth scanning, and native file picking.
 
 ---
 
+## Android platform support additions (2026-11-08)
+
+```text
+.github/workflows/
+└── android-ci.yml                           (new: arm64 Rust FFI + debug APK CI)
+
+app/flutter/
+├── android/
+│   ├── app/build.gradle.kts                 (application ID com.kiandrahd.uam)
+│   └── app/src/main/
+│       ├── AndroidManifest.xml              (no release permissions)
+│       └── kotlin/com/kiandrahd/uam/MainActivity.kt
+└── lib/core/utils/rust_library_locator.dart (Android SONAME resolution)
+
+scripts/build/
+└── build_android_rust.ps1                   (new: NDK Rust cross-compile + jniLibs packaging)
+
+docs/
+├── ANDROID_SETUP.md                         (new: developer setup/build guide)
+└── ANDROID_BUILD_REPORT.md                  (new: implementation and validation record)
+```
+
+Generated Android Rust artifacts are intentionally not committed:
+
+```text
+app/flutter/android/app/src/main/jniLibs/<abi>/libuam_ffi.so
+```
+
+`jniLibs` is ignored at the repository root and populated by
+`build_android_rust.ps1`. `arm64-v8a` is required; `armeabi-v7a` and `x86_64`
+are optional build targets. Android FFI packaging does not implement an Android
+audio backend, Bluetooth integration, or system-wide processing.
+
+---
+
 ## Phase 2.1–2.2 actual structure additions (2026-11-08)
 
 Additions on `feat/phase-2-dsp-foundation`:
