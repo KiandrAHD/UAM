@@ -21,9 +21,11 @@
 11. `PHASE_1_1_REPORT.md` — Phase 1.1 stabilization audit and (updated) Windows closure.
 12. `PHASE_2_READINESS.md` — Phase 2 DSP gap audit and proposed design.
 13. `PHASE_2_IMPLEMENTATION_REPORT.md` — Phase 2.1–2.2 DSP configuration foundation, evidence, and next steps.
-14. `adr/` — Architecture Decision Records (ADR-001 through ADR-007).
-15. `platform/` — Per-platform notes for Windows, macOS, Linux, Android, and iOS.
-16. `testing/` — Test strategy, audio testing method, and hardware matrix.
+14. `PHASE_2_3_DESIGN.md` — Phase 2.3A–2.3D + 2.6 technical design and explicit guarantees/limitations.
+15. `PHASE_2_3_IMPLEMENTATION_REPORT.md` — Phase 2.3 and 2.6 implementation status, validation evidence, and remaining work.
+16. `adr/` — Architecture Decision Records (ADR-001 through ADR-007).
+17. `platform/` — Per-platform notes for Windows, macOS, Linux, Android, and iOS.
+18. `testing/` — Test strategy, audio testing method, hardware matrix, and measured DSP benchmarks (`BENCHMARKS.md`).
 
 ## Core product decisions
 

@@ -437,11 +437,12 @@ network layers unimplemented.
 
 See `docs/PHASE_1_REPORT.md` for the test evidence and explicit limitations.
 
-## 17. Phase 2.1–2.2 implementation notes
+## 17. Phase 2 implementation notes
 
-Phase 2.1–2.2 add the DSP configuration foundation. They implement the format
-and configuration seams from §5 but deliberately do **not** attach an audio
-backend, a limiter, or a Flutter DSP controller.
+Phase 2.1–2.2 add the DSP configuration foundation. Phase 2.3A–2.3D adds the
+preset adapter, peak meter, limiter, pipeline, and numerical-safety regression
+coverage; Phase 2.6 adds the benchmark suite. These milestones still do **not**
+attach an audio backend or a Flutter DSP controller.
 
 - **Audio format model.** `uam_domain::SampleFormat` describes the *external
   boundary* format a future backend delivers or expects (`F32`/`F64`).
@@ -456,14 +457,29 @@ backend, a limiter, or a Flutter DSP controller.
   from a DTO; `Equalizer::apply_config` replaces parameters in place. A
   sample-rate or channel change returns `ReconfigurationRequired`; a rejected
   update leaves the active chain untouched.
-- **Limiter.** `LimiterConfig` is metadata only; no signal processing. Enabling
-  it does not alter output.
+- **Limiter.** `uam_dsp::Limiter` is a real processor: feed-forward,
+  zero-look-ahead, channel-linked, instantaneous attack with one-pole release.
+  The output sample peak is bounded to `LimiterConfig::ceiling_db` for every
+  finite input. It is a separate component composed by `DspPipeline`, so
+  `Equalizer` stays limiter-agnostic. It is **not** true-peak and has no
+  look-ahead (`latency_samples() == 0`).
+- **Metering.** `uam_dsp::PeakMeter` measures sample peak per channel and
+  overall, counts clipped and non-finite samples, and always reports finite
+  dBFS (floored at `-200.0`). It is sample peak only, never true peak.
+- **Pipeline (2.3C).** `uam_dsp::DspPipeline` runs input meter -> preamp + EQ ->
+  pre-limiter meter -> limiter -> output meter and returns a `PipelineReport`
+  (input, pre-limiter clipping, gain reduction, output). `process_interleaved`
+  is allocation- and lock-free.
+- **Preset adapter (2.3A).** `uam_preset::adapter::Preset::to_dsp_config` bridges
+  the portable schema to a validated `DspConfig`, reusing `DspConfig::new` as the
+  single numeric authority (no second set of bounds).
 - **Real-time hand-off.** `process_interleaved` remains allocation- and
   lock-free. The parameter hand-off model (immutable prepared state, bounded
   single-owner transfer, applied at a block boundary) is recorded in
   `docs/adr/ADR-007`; implementation is deferred to the backend milestone.
   `uam_dsp` and `uam_domain` remain `#![forbid(unsafe_code)]`.
-- **Not implemented:** limiter algorithm, parameter transport, FFI DSP symbols,
-  Flutter DSP controller, WASAPI backend, benchmarks (Phase 2.3+).
+- **Not implemented:** parameter transport, FFI DSP symbols, Flutter DSP
+  controller, WASAPI backend. See `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md`.
 
-See `docs/PHASE_2_IMPLEMENTATION_REPORT.md` for evidence.
+See `docs/PHASE_2_IMPLEMENTATION_REPORT.md` and
+`docs/PHASE_2_3_IMPLEMENTATION_REPORT.md` for evidence.

@@ -21,11 +21,19 @@
 pub mod config;
 pub mod equalizer;
 pub mod filters;
+pub mod limiter;
+pub mod meter;
+pub mod pipeline;
 pub mod validation;
 
 pub use config::{DspConfig, LimiterConfig};
 pub use equalizer::Equalizer;
 pub use filters::{BandConfig, Biquad, BiquadCoefficients, FilterKind};
+pub use limiter::Limiter;
+pub use meter::{
+    linear_to_dbfs, BlockPeak, MeterError, PeakMeter, CLIP_THRESHOLD_LINEAR, DBFS_FLOOR,
+};
+pub use pipeline::{DspPipeline, PipelineReport};
 pub use validation::{
     DspError, MAX_BANDS, MAX_FREQUENCY_HZ, MAX_GAIN_DB, MAX_LIMITER_CEILING_DB,
     MAX_LIMITER_RELEASE_MS, MAX_PREAMP_DB, MAX_Q, MIN_FREQUENCY_HZ, MIN_GAIN_DB,

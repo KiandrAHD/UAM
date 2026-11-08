@@ -156,19 +156,30 @@ Implement a deterministic, testable audio-processing core.
 - Parameter updates do not block the audio callback.
 - Performance is acceptable on the MVP reference machine.
 
-### Progress (2026-11-08) — Phase 2.1–2.2
+### Progress (2026-11-08) — Phase 2.1–2.3 + 2.6
 
-- **Done:** audio sample-format and channel model (`SampleFormat` boundary vs
-  internal `f64` representation); validated DSP configuration DTO (`DspConfig`,
-  `LimiterConfig`); control-thread `Equalizer::from_config`/`apply_config` with
-  failure-safe replacement; documented value ranges; real-time hand-off design
-  recorded in `docs/adr/ADR-007`.
-- **Exit criteria met:** DSP tests pass for mono/stereo at 8/44.1/48/96/192/384
-  kHz (64 Rust tests); no unexpected NaN/inf for validated inputs.
-- **Still open:** parameter hand-off to a live callback, limiter algorithm,
-  preset→DSP adapter, Flutter DSP controller, benchmark suite, and the
-  performance exit criterion.
-- See `docs/PHASE_2_IMPLEMENTATION_REPORT.md` for evidence and
+- **Done (2.1–2.2):** audio sample-format and channel model (`SampleFormat`
+  boundary vs internal `f64` representation); validated DSP configuration DTO
+  (`DspConfig`, `LimiterConfig`); control-thread
+  `Equalizer::from_config`/`apply_config` with failure-safe replacement;
+  documented value ranges; real-time hand-off design recorded in
+  `docs/adr/ADR-007`.
+- **Done (2.3A–2.3D):** `Preset::to_dsp_config` adapter; `PeakMeter` sample-peak
+  and clipping detection; feed-forward, zero-look-ahead, channel-linked
+  `Limiter`; `DspPipeline` with input/pre-limiter/output reports; non-finite,
+  subnormal, long-run, invalid-block, and steady-state allocation regression
+  tests.
+- **Done (2.6):** Criterion benchmark suite and measured reference-machine
+  results. Stereo 10-band EQ + limiter at 48 kHz/256 frames uses 254.70 ns/frame
+  (1.223 % of one core), meeting the < 2 % target.
+- **Exit criteria met:** DSP tests pass for mono/stereo (127 Rust tests); no
+  unexpected NaN/inf after containment; performance target met on the reference
+  machine.
+- **Still open:** parameter hand-off to a live callback, crossfade/ramping,
+  FFI DSP symbols, Flutter DSP controller, and an audio backend. Therefore
+  Phase 2 is still not fully complete.
+- See `docs/PHASE_2_3_IMPLEMENTATION_REPORT.md` for evidence,
+  `docs/PHASE_2_3_DESIGN.md` for guarantees/limits, and
   `docs/PHASE_2_READINESS.md` for the updated gap list.
 
 ## 6. Phase 3 — Local Data and Preset Exchange
