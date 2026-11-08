@@ -7,11 +7,13 @@
 //! pairing material. Unknown fields are rejected so future additions require an
 //! explicit schema-version decision.
 
+pub mod adapter;
 pub mod export;
 pub mod import;
 pub mod schema;
 pub mod validation;
 
+pub use adapter::PresetConversionError;
 pub use export::to_json_string;
 pub use import::{from_bytes, from_json_str};
 pub use schema::{

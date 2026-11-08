@@ -11,4 +11,5 @@ repository.workspace = true
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+uam_domain.workspace = true
 uam_dsp.workspace = true
