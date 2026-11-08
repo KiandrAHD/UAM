@@ -436,3 +436,34 @@ network layers unimplemented.
   future work.
 
 See `docs/PHASE_1_REPORT.md` for the test evidence and explicit limitations.
+
+## 17. Phase 2.1–2.2 implementation notes
+
+Phase 2.1–2.2 add the DSP configuration foundation. They implement the format
+and configuration seams from §5 but deliberately do **not** attach an audio
+backend, a limiter, or a Flutter DSP controller.
+
+- **Audio format model.** `uam_domain::SampleFormat` describes the *external
+  boundary* format a future backend delivers or expects (`F32`/`F64`).
+  `INTERNAL_PROCESSING_FORMAT` is always `F64`: the processing kernel is `f64`
+  only, and no native `f32` kernel is claimed. `AudioConfig::new` is unchanged
+  and defaults to `F64`; `AudioConfig::with_format` records a boundary format.
+- **DSP configuration DTO.** `uam_dsp::DspConfig` carries the audio
+  configuration, preamp, ordered EQ bands, bypass state, and optional
+  `LimiterConfig` metadata. It is validated by one `validate()` against the
+  documented ranges in `uam_dsp::validation`.
+- **Control-thread reconfiguration.** `Equalizer::from_config` builds a chain
+  from a DTO; `Equalizer::apply_config` replaces parameters in place. A
+  sample-rate or channel change returns `ReconfigurationRequired`; a rejected
+  update leaves the active chain untouched.
+- **Limiter.** `LimiterConfig` is metadata only; no signal processing. Enabling
+  it does not alter output.
+- **Real-time hand-off.** `process_interleaved` remains allocation- and
+  lock-free. The parameter hand-off model (immutable prepared state, bounded
+  single-owner transfer, applied at a block boundary) is recorded in
+  `docs/adr/ADR-007`; implementation is deferred to the backend milestone.
+  `uam_dsp` and `uam_domain` remain `#![forbid(unsafe_code)]`.
+- **Not implemented:** limiter algorithm, parameter transport, FFI DSP symbols,
+  Flutter DSP controller, WASAPI backend, benchmarks (Phase 2.3+).
+
+See `docs/PHASE_2_IMPLEMENTATION_REPORT.md` for evidence.

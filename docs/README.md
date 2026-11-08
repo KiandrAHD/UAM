@@ -18,9 +18,12 @@
 8. `DEPENDENCY_AUDIT.md` — Phase 0 dependency and license inventory.
 9. `PHASE_0_REPORT.md` — Phase 0 results, evidence, blockers, and next steps.
 10. `PHASE_1_REPORT.md` — Phase 1 foundation, responsive UX, state model, tests, and limitations.
-11. `adr/` — Architecture Decision Records (ADR-001 through ADR-006).
-12. `platform/` — Per-platform notes for Windows, macOS, Linux, Android, and iOS.
-13. `testing/` — Test strategy, audio testing method, and hardware matrix.
+11. `PHASE_1_1_REPORT.md` — Phase 1.1 stabilization audit and (updated) Windows closure.
+12. `PHASE_2_READINESS.md` — Phase 2 DSP gap audit and proposed design.
+13. `PHASE_2_IMPLEMENTATION_REPORT.md` — Phase 2.1–2.2 DSP configuration foundation, evidence, and next steps.
+14. `adr/` — Architecture Decision Records (ADR-001 through ADR-007).
+15. `platform/` — Per-platform notes for Windows, macOS, Linux, Android, and iOS.
+16. `testing/` — Test strategy, audio testing method, and hardware matrix.
 
 ## Core product decisions
 

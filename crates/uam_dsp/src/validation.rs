@@ -22,6 +22,18 @@ pub const MAX_Q: f64 = 10.0;
 pub const MIN_PREAMP_DB: f64 = -24.0;
 /// Highest accepted preamp gain in decibels.
 pub const MAX_PREAMP_DB: f64 = 12.0;
+/// Lowest accepted limiter ceiling in decibels relative to full scale.
+pub const MIN_LIMITER_CEILING_DB: f64 = -12.0;
+/// Highest accepted limiter ceiling in decibels relative to full scale.
+pub const MAX_LIMITER_CEILING_DB: f64 = 0.0;
+/// Default limiter ceiling, leaving a small inter-sample margin.
+pub const DEFAULT_LIMITER_CEILING_DB: f64 = -0.3;
+/// Lowest accepted limiter release time in milliseconds.
+pub const MIN_LIMITER_RELEASE_MS: f64 = 10.0;
+/// Highest accepted limiter release time in milliseconds.
+pub const MAX_LIMITER_RELEASE_MS: f64 = 1_000.0;
+/// Default limiter release time in milliseconds.
+pub const DEFAULT_LIMITER_RELEASE_MS: f64 = 100.0;
 /// Maximum number of EQ bands allowed by the Phase 0 preset contract.
 pub const MAX_BANDS: usize = 32;
 
@@ -75,6 +87,29 @@ pub enum DspError {
     },
     /// Computed biquad coefficients were not finite or had a zero denominator.
     UnstableCoefficients,
+    /// Limiter ceiling outside the accepted range.
+    LimiterCeilingOutOfRange {
+        /// Supplied value in decibels relative to full scale.
+        ceiling_db: f64,
+    },
+    /// Limiter release time outside the accepted range.
+    LimiterReleaseOutOfRange {
+        /// Supplied value in milliseconds.
+        release_ms: f64,
+    },
+    /// A configuration targets a different sample rate or channel count than
+    /// the active engine. Sample-rate and channel changes require an explicit
+    /// engine reconfiguration rather than an in-place update.
+    ReconfigurationRequired {
+        /// Sample rate the active engine was built with.
+        active_sample_rate_hz: u32,
+        /// Channel count the active engine was built with.
+        active_channels: u16,
+        /// Sample rate requested by the rejected configuration.
+        target_sample_rate_hz: u32,
+        /// Channel count requested by the rejected configuration.
+        target_channels: u16,
+    },
 }
 
 impl fmt::Display for DspError {
@@ -119,6 +154,24 @@ impl fmt::Display for DspError {
             Self::UnstableCoefficients => {
                 write!(formatter, "biquad coefficients were non-finite or unstable")
             }
+            Self::LimiterCeilingOutOfRange { ceiling_db } => write!(
+                formatter,
+                "limiter ceiling {ceiling_db:.2} dBFS is outside {MIN_LIMITER_CEILING_DB:.2}..={MAX_LIMITER_CEILING_DB:.2} dBFS"
+            ),
+            Self::LimiterReleaseOutOfRange { release_ms } => write!(
+                formatter,
+                "limiter release {release_ms:.2} ms is outside {MIN_LIMITER_RELEASE_MS:.2}..={MAX_LIMITER_RELEASE_MS:.2} ms"
+            ),
+            Self::ReconfigurationRequired {
+                active_sample_rate_hz,
+                active_channels,
+                target_sample_rate_hz,
+                target_channels,
+            } => write!(
+                formatter,
+                "configuration targets {target_sample_rate_hz} Hz / {target_channels} ch but the engine runs \
+                 {active_sample_rate_hz} Hz / {active_channels} ch; an explicit reconfiguration is required"
+            ),
         }
     }
 }
