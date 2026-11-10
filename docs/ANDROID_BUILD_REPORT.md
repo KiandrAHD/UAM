@@ -1,9 +1,9 @@
 # Android Build Report
 
-**Branch:** `feat/android-platform-support`  
-**Report date:** 2026-11-08  
-**Flutter:** 3.44.6 stable (Dart 3.12.2)  
-**Rust:** 1.99.1 stable  
+**Branch:** `feat/android-platform-support` → `feat/phase-2-7-stabilization`
+**Report date:** 2026-11-08 (original) · 2026-11-10 (Phase 2.7 update)
+**Flutter:** 3.44.6 stable (Dart 3.12.2)
+**Rust:** 1.99.1 stable
 **Bridge ABI:** 1
 
 ## 1. Scope
@@ -28,7 +28,7 @@ Bluetooth control, device discovery, or system-wide audio processing.
 | `.so` in APK | Verified | `lib/arm64-v8a/libuam_ffi.so` present in APK |
 | Exported symbols | Verified | `uam_abi_version`, `uam_get_engine_info`, `uam_string_free` |
 | Dart FFI loader | Implemented | Android SONAME loading in `RustLibraryLocator` |
-| Android CI workflow | Added (not yet run on GitHub) | `.github/workflows/android-ci.yml` |
+| Android CI workflow | Fixed in Phase 2.7 (root cause: obsolete `tools` package in `setup-android` default); verified locally via matching commands | `.github/workflows/android-ci.yml` |
 | Emulator test | **Not performed** | No AVD or system image installed |
 | Physical-device test | **Not performed** | `adb devices` reported no device |
 
@@ -147,6 +147,66 @@ No Windows files, CMake configuration, or the Windows build script were modified
 5. Only `arm64-v8a` was built here; other ABIs require their Rust targets.
 6. The debug `.so` is ~6.2 MB; a `release` profile build is smaller (LTO, symbols
    stripped) and is the recommended profile for distribution.
+
+---
+
+## 12b. Phase 2.7 CI fix — exact changes to `android-ci.yml`
+
+**Root cause:** `android-actions/setup-android@v3` defaults its `packages` input
+to `tools platform-tools`. The `tools` package was removed from the Android SDK
+repository; `sdkmanager` fails with `Warning: Failed to find package 'tools'`
+and the step exits non-zero.
+
+**Changes applied:**
+
+```yaml
+# Before (broken)
+uses: android-actions/setup-android@v3
+# → packages: 'tools platform-tools'  <- fails
+
+# After (fixed)
+uses: android-actions/setup-android@v3
+with:
+  cmdline-tools-version: "12266719"
+  packages: "platform-tools"           # <- no obsolete 'tools'
+  accept-android-sdk-licenses: "true" # explicit, not required but clear
+
+- name: Install required Android SDK packages
+  run: |
+    sdkmanager "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "ndk;$NDK_VERSION"
+```
+
+A job-level `env:` block pins `NDK_VERSION`, `ANDROID_PLATFORM`,
+`ANDROID_BUILD_TOOLS`, and `CMDLINE_TOOLS_VERSION` as a single source of truth.
+
+Workflow YAML validated: `python -c "import yaml; yaml.safe_load(...)"` → OK.
+
+**Script improvement (`scripts/build/build_android_rust.ps1`):** the `llvm-nm`,
+`llvm-ar`, and `llvm-ranlib` lookups used the `.cmd` suffix on Windows, but the
+NDK ships these tools as `.exe`. Symbol verification and `AR`/`RANLIB` config
+were silently skipped. Fixed to use `$binExeSuffix = '.exe'` for binutils and
+`$clangExeSuffix = '.cmd'` for the clang wrapper only.
+
+---
+
+## 12c. Phase 2.7 validation summary
+
+| Item | Outcome |
+|---|---|
+| Android CI workflow fix | Logically verified (YAML, matching commands); GitHub Actions re-run pending push |
+| Debug `libuam_ffi.so` | Built, 5.9 MB on disk, ELF64/AArch64/DYN |
+| Release `libuam_ffi.so` | Built, 0.44 MB on disk |
+| Native symbols | `uam_abi_version`, `uam_get_engine_info`, `uam_string_free` verified with `llvm-nm` |
+| APK | 141.73 MB; `lib/arm64-v8a/libuam_ffi.so` (0.34 MB stripped); 3 UAM symbols preserved |
+| Physical device test | Not performed (`adb devices` empty) |
+| Emulator test | Not performed (no AVD) |
+| Windows regression | All checks pass |
+| Rust regression | 127 tests pass |
+| Flutter regression | 68 tests pass |
+
+See `docs/PHASE_2_7_STABILIZATION_REPORT.md` for the full evidence log.
+
+---
 
 ## 12. Exact commands
 

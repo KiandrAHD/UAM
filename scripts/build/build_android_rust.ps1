@@ -76,7 +76,10 @@ $isWindowsHost = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatfo
 $isMacHost = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
     [System.Runtime.InteropServices.OSPlatform]::OSX)
 $hostPrebuilt = if ($isWindowsHost) { 'windows-x86_64' } elseif ($isMacHost) { 'darwin-x86_64' } else { 'linux-x86_64' }
+# The NDK ships the clang wrappers as `.cmd` scripts on Windows, but the LLVM
+# binutils (llvm-nm, llvm-ar, llvm-ranlib) as `.exe` binaries.
 $clangExeSuffix = if ($isWindowsHost) { '.cmd' } else { '' }
+$binExeSuffix = if ($isWindowsHost) { '.exe' } else { '' }
 
 # Windows hosts use the self-contained GNU toolchain (mirrors build_rust.ps1):
 # the host has no MSVC linker, and the WinLibs gcc path contains spaces.
@@ -193,10 +196,10 @@ function Invoke-AndroidBuild {
     # cc-rs style variables (no C dependencies today, but keep future ones working).
     $toolSuffix = ($target -replace '-', '_')
     Set-Item -Path ("Env:CC_$toolSuffix") -Value $clangPath
-    $llvmAr = Join-Path $prebuiltBin ('llvm-ar' + $clangExeSuffix)
+    $llvmAr = Join-Path $prebuiltBin ('llvm-ar' + $binExeSuffix)
     if (Test-Path $llvmAr) {
         Set-Item -Path ("Env:AR_$toolSuffix") -Value $llvmAr
-        Set-Item -Path ("Env:RANLIB_$toolSuffix") -Value (Join-Path $prebuiltBin ('llvm-ranlib' + $clangExeSuffix))
+        Set-Item -Path ("Env:RANLIB_$toolSuffix") -Value (Join-Path $prebuiltBin ('llvm-ranlib' + $binExeSuffix))
     }
 
     $profileArgs = @()
@@ -227,7 +230,7 @@ function Invoke-AndroidBuild {
     Write-Output "[android] Built:  $builtLibrary"
     Write-Output "[android] Packed: $destination"
 
-    $llvmNm = Join-Path $prebuiltBin ('llvm-nm' + $clangExeSuffix)
+    $llvmNm = Join-Path $prebuiltBin ('llvm-nm' + $binExeSuffix)
     if (Test-Path $llvmNm) {
         Write-Output "[android] Exported UAM symbols ($AbiName):"
         & $llvmNm --dynamic --defined-only $destination |

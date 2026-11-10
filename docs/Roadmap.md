@@ -318,6 +318,27 @@ Status: **implemented and built locally; not yet device-validated.**
 - **Not validated:** physical-device and emulator runs. See
   `docs/ANDROID_BUILD_REPORT.md` and `docs/ANDROID_SETUP.md`.
 
+### Phase 2.7 stabilization update (2026-11-10)
+
+Status: **local stabilization checks pass; GitHub Actions/device validation pending.**
+
+- Root-caused the Android CI failure: `android-actions/setup-android@v3`
+  requested removed SDK package `tools` through its default `packages` input.
+- Fixed the workflow to pin command-line tools `12266719` and request only
+  `platform-tools`; explicitly installs platform 36, build-tools 36.0.0, and NDK
+  `28.2.13676358`. Does not skip package setup or hide errors.
+- Fixed Windows LLVM binutils discovery in `build_android_rust.ps1`; NDK binutils
+  use `.exe`, while clang wrappers use `.cmd`.
+- Locally built `arm64-v8a` debug/release shared libraries and the arm64 debug
+  APK; verified ELF type, ABI exports, and APK contents.
+- Rust (127 tests), Flutter (68 tests), benchmark compilation, and Windows
+  debug build passed.
+- **Not verified:** GitHub Actions after push, emulator, or physical Android
+  device. The Android C ABI remains metadata-only (ABI 1); no audio backend,
+  system-wide processing, device discovery, or Bluetooth was added.
+
+See `docs/PHASE_2_7_STABILIZATION_REPORT.md` for exact commands and results.
+
 ## 11. Phase 8 — iOS
 
 ### Objectives

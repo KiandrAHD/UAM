@@ -56,12 +56,15 @@ reports capability evidence.
 | **Phase 0** — discovery and technical validation | Complete, with documented platform blockers |
 | **Phase 1** — foundation and UX (shell, design system, modules) | Implemented and validated in the available Flutter/Rust test environment |
 | **Phase 2.1–2.3, 2.6** — DSP core (config, EQ, limiter, metering, pipeline, benchmarks) | Implemented and tested; no live audio callback yet |
+| **Phase 2.7** — repository stabilization and Android CI repair | Android CI failure root-caused and fixed (obsolete `tools` package); cross-compilation, symbols, and APK re-verified locally; device/CI validation deferred |
 | **Android** — platform support and Rust FFI packaging | Implemented; a debug APK builds locally and contains `lib/arm64-v8a/libuam_ffi.so`. Not device-validated |
 | **Audio backend / system-wide processing** | Not implemented. Processing scope is `configuration_only` |
 
 Recorded validation on the reference host: 127 Rust tests, 68 Flutter tests,
 and 3 valid / 8 invalid preset fixtures. DSP benchmarks meet the `< 2 %` of one
-core target (stereo 10-band EQ + limiter at 48 kHz / 256 frames). See
+core target (stereo 10-band EQ + limiter at 48 kHz / 256 frames). Phase 2.7
+re-verified the Android build script (debug + release), APK packaging, native
+symbols, and the Windows/Rust/Flutter regressions. See
 [`docs/Roadmap.md`](docs/Roadmap.md) and the phase reports for evidence.
 
 ### Repository layout
@@ -400,12 +403,15 @@ bukti kemampuan.
 | **Fase 0** — penemuan dan validasi teknis | Selesai, dengan blocker platform yang terdokumentasi |
 | **Fase 1** — fondasi dan UX (shell, design system, modul) | Terimplementasi dan tervalidasi di lingkungan uji Flutter/Rust yang tersedia |
 | **Fase 2.1–2.3, 2.6** — core DSP (config, EQ, limiter, metering, pipeline, benchmark) | Terimplementasi dan teruji; belum ada callback audio live |
+| **Fase 2.7** — stabilisasi repositori dan perbaikan CI Android | Akar kegagalan CI Android ditemukan dan diperbaiki (paket usang `tools`); cross-compile, simbol, dan APK diverifikasi ulang secara lokal; validasi perangkat/CI ditunda |
 | **Android** — dukungan platform dan pengemasan Rust FFI | Terimplementasi; APK debug dapat dibangun secara lokal dan memuat `lib/arm64-v8a/libuam_ffi.so`. Belum divalidasi di perangkat |
 | **Backend audio / pemrosesan system-wide** | Belum diimplementasikan. Cakupan pemrosesan adalah `configuration_only` |
 
 Validasi tercatat pada host referensi: 127 tes Rust, 68 tes Flutter, dan 3
 fixture preset valid / 8 invalid. Benchmark DSP memenuhi target `< 2 %` dari
-satu core (stereo 10-band EQ + limiter pada 48 kHz / 256 frame). Lihat
+satu core (stereo 10-band EQ + limiter pada 48 kHz / 256 frame). Fase 2.7
+memverifikasi ulang skrip build Android (debug + release), pengemasan APK,
+simbol native, serta regresi Windows/Rust/Flutter. Lihat
 [`docs/Roadmap.md`](docs/Roadmap.md) dan laporan fase untuk buktinya.
 
 ### Struktur repositori

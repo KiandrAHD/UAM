@@ -22,6 +22,19 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Single source of truth for the Android toolchain. These must stay in sync
+  # with Flutter 3.44.6's defaults (compileSdk 36, NDK 28.2.13676358) and with
+  # docs/ANDROID_SETUP.md.
+  #
+  # NOTE: the legacy package named `tools` does NOT exist in the current SDK
+  # repository (it was replaced by `cmdline-tools`), so it must never be
+  # requested from sdkmanager.
+  CMDLINE_TOOLS_VERSION: "12266719"
+  NDK_VERSION: "28.2.13676358"
+  ANDROID_PLATFORM: "platforms;android-36"
+  ANDROID_BUILD_TOOLS: "build-tools;36.0.0"
+
 jobs:
   build-arm64-debug-apk:
     name: arm64-v8a Rust FFI and debug APK
@@ -48,13 +61,19 @@ jobs:
         with:
           workspaces: crates
 
-      - name: Install Android SDK command-line tools and NDK
+      # The `packages` input is pinned explicitly. Its upstream default is
+      # `tools platform-tools`, and the removed `tools` package makes
+      # `sdkmanager` exit with "Failed to find package 'tools'".
+      - name: Install Android SDK command-line tools
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: ${{ env.CMDLINE_TOOLS_VERSION }}
+          packages: "platform-tools"
+          accept-android-sdk-licenses: "true"
 
       - name: Install required Android SDK packages
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358"
+          sdkmanager "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "ndk;$NDK_VERSION"
 
       - name: Build and package Rust FFI library
         shell: pwsh
@@ -64,7 +83,7 @@ jobs:
         shell: bash
         run: |
           test -f app/flutter/android/app/src/main/jniLibs/arm64-v8a/libuam_ffi.so
-          "${ANDROID_SDK_ROOT}/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm" \
+          "${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm" \
             --dynamic --defined-only \
             app/flutter/android/app/src/main/jniLibs/arm64-v8a/libuam_ffi.so | \
             grep -E 'uam_(abi_version|get_engine_info|string_free)'

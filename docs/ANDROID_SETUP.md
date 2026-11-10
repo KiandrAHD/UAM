@@ -17,6 +17,7 @@ the bridge exposes engine metadata only.
 |---|---|---|
 | Flutter | 3.44.6 (stable) | Installed and on `PATH` |
 | Android SDK | 36.x | Platform `android-36` and build-tools `36.0.0` required |
+| Android command-line tools | **12266719** | Current replacement for the removed legacy `tools` package |
 | Android NDK | **28.2.13676358** | Must include `aarch64-linux-android<API>-clang` |
 | Rust toolchain | stable (1.85+) | Must include target `aarch64-linux-android` |
 | Java / JDK | 17+ | Android Studio JBR 21 works |
@@ -45,12 +46,22 @@ The SDK must contain:
 - `build-tools/36.0.0/`
 - `ndk/<version>/` (see §2)
 
-If licenses are not accepted:
+Install the current command-line tools and pinned build packages with
+`sdkmanager` from `cmdline-tools/latest/bin` (or Android Studio's SDK Manager):
 
 ```powershell
+# Do not request the removed legacy package named `tools`.
+sdkmanager --install `
+  "platform-tools" `
+  "platforms;android-36" `
+  "build-tools;36.0.0" `
+  "ndk;28.2.13676358"
 sdkmanager --licenses
-# accept all android-sdk-license entries
 ```
+
+The GitHub Actions workflow pins command-line tools `12266719` and explicitly
+requests only `platform-tools`; this avoids the obsolete `tools` package that
+caused CI run `42467553523` to fail.
 
 Or use Android Studio's SDK Manager UI.
 
@@ -271,9 +282,20 @@ Verify the NDK install: the `toolchains/llvm/prebuilt/windows-x86_64/bin/` direc
 A GitHub Actions workflow at `.github/workflows/android-ci.yml` runs on every
 push to `main` and `feat/**`. It:
 1. Installs Flutter 3.44.6 and Rust stable.
-2. Installs Android SDK and NDK 28.2.13676358 via `android-actions/setup-android`.
-3. Builds the Rust library for `arm64-v8a` using the `build_android_rust.ps1` script.
-4. Builds a debug APK and uploads it as a workflow artifact.
+2. Installs Android command-line tools `12266719` through
+   `android-actions/setup-android@v3`, with `packages: "platform-tools"`.
+   It deliberately does **not** request the removed legacy `tools` package.
+3. Installs platform `android-36`, build-tools `36.0.0`, and NDK
+   `28.2.13676358` through an explicit `sdkmanager` invocation.
+4. Builds the Rust library for `arm64-v8a` using `build_android_rust.ps1`.
+5. Verifies the three versioned C ABI symbols in the ELF.
+6. Builds a debug APK, verifies it contains `lib/arm64-v8a/libuam_ffi.so`, and
+   uploads the APK artifact.
+
+The prior run `42467553523` failed before compilation because the action's
+implicit `tools platform-tools` package default requested a package removed from
+the current Android SDK repository. Phase 2.7 overrides that default. The fix
+must still be confirmed by a green GitHub Actions run after the branch is pushed.
 
 Artifacts are available from the GitHub Actions run summary.
 

@@ -8,10 +8,12 @@ unimplemented. Physical-device and emulator validation were not performed. See
 
 ## 1. Toolchain status
 
-- Android SDK `36` is present.
-- `cmdline-tools` is missing, and SDK licenses have not been accepted.
+- Android SDK `36` and build-tools `36.0.0` are present.
+- Android command-line tools are pinned to `12266719` in CI; the obsolete
+  package named `tools` must not be requested.
+- Android NDK `28.2.13676358` is present and used for the Rust FFI build.
 - No emulator or physical device test was run.
-- Mobile builds were not attempted.
+- The arm64 debug APK was built locally; on-device validation remains deferred.
 
 ## 2. Audio integration candidates
 

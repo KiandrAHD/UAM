@@ -28,6 +28,8 @@
 18. `testing/` — Test strategy, audio testing method, hardware matrix, and measured DSP benchmarks (`BENCHMARKS.md`).
 19. `ANDROID_SETUP.md` — Android SDK/NDK setup, Rust target installation, build script usage, native library packaging, and device testing.
 20. `ANDROID_BUILD_REPORT.md` — Android platform-support implementation status, build evidence, ABI verification, and explicit limitations.
+21. `PHASE_2_7_STABILIZATION_REPORT.md` — Android CI root-cause repair, local cross-compilation/APK evidence, Windows/Rust/Flutter regressions, and deferred device validation.
+22. `platform/ANDROID.md` — Android capability and validation notes.
 
 ## Core product decisions
 
