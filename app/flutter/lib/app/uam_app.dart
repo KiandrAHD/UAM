@@ -4,19 +4,36 @@ import '../bridge/rust_api.dart';
 import '../core/constants/app_constants.dart';
 import '../design_system/theme/uam_theme.dart';
 import '../features/audio_engine/application/engine_controller.dart';
-import '../features/device_manager/application/device_controller.dart';
-import '../features/equalizer/application/equalizer_controller.dart';
-import '../features/presets/application/preset_library_controller.dart';
 import 'router/app_router.dart';
 import 'router/app_routes.dart';
+import 'services/uam_services.dart';
 import 'state/uam_app_controller.dart';
 
-/// Root application. The existing Phase 0 [EngineInfoGateway] remains the sole
-/// source for Rust engine metadata.
+/// Root application.
+///
+/// The Rust [EngineInfoGateway] remains the sole source for engine metadata. The
+/// [services] container owns the single SQLite database and its repositories, so
+/// there is exactly one persistence stack for the whole process.
+///
+/// [initialThemePreference], [initialReducedMotion], and [initialLaunchAtStartup]
+/// are read from the database during bootstrap and passed in so the very first
+/// frame already uses the persisted appearance. This avoids a visible flash from
+/// the default theme to the saved theme.
 final class UamApp extends StatefulWidget {
-  const UamApp({required this.engineInfoGateway, super.key});
+  const UamApp({
+    required this.engineInfoGateway,
+    required this.services,
+    this.initialThemePreference,
+    this.initialReducedMotion,
+    this.initialLaunchAtStartup,
+    super.key,
+  });
 
   final EngineInfoGateway engineInfoGateway;
+  final UamServices services;
+  final UamThemePreference? initialThemePreference;
+  final bool? initialReducedMotion;
+  final bool? initialLaunchAtStartup;
 
   @override
   State<UamApp> createState() => _UamAppState();
@@ -29,11 +46,12 @@ final class _UamAppState extends State<UamApp> {
   @override
   void initState() {
     super.initState();
-    _controller = UamAppController(
+    _controller = UamAppController.fromServices(
       engine: EngineController(widget.engineInfoGateway),
-      devices: DeviceController(),
-      equalizer: EqualizerController(),
-      presets: PresetLibraryController(),
+      services: widget.services,
+      initialThemePreference: widget.initialThemePreference,
+      initialReducedMotion: widget.initialReducedMotion,
+      initialLaunchAtStartup: widget.initialLaunchAtStartup,
     );
     _chrome = ValueNotifier<(ThemeMode, bool)>(_chromeState);
     _controller.addListener(_syncChrome);
@@ -88,6 +106,54 @@ final class _UamAppState extends State<UamApp> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+/// Explicit, recoverable startup failure state.
+///
+/// Shown when the local database cannot be opened, migrated, or verified. UAM
+/// never falls back to volatile in-memory storage, so this screen replaces the
+/// application instead of running with data the user would lose.
+final class UamBootstrapErrorApp extends StatelessWidget {
+  const UamBootstrapErrorApp({required this.message, super.key});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: AppConstants.productName,
+      debugShowCheckedModeBanner: false,
+      theme: UamTheme.dark,
+      home: Scaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    'UAM could not start its local data store',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(message),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Presets and settings are stored in a local SQLite database. '
+                    'Check that the application data directory is writable, then '
+                    'restart UAM. Nothing was deleted.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

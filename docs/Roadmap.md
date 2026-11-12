@@ -202,12 +202,22 @@ Make UAM useful offline and enable user-to-user configuration sharing.
 - Versioned preset schema.
 - Import/export workflow.
 - Sample preset fixtures.
+- Backup and restore workflow with integrity verification.
+
+### Phase 3 result (2026-11-12)
+
+Status: **implemented and locally validated; cross-platform/device gates remain pending.**
+
+SQLite persistence, preset CRUD, settings persistence, schema-v1 import/export,
+conflict resolution, and `.uam-backup` creation/restore are implemented. Evidence:
+[`PHASE_3_IMPLEMENTATION_REPORT.md`](PHASE_3_IMPLEMENTATION_REPORT.md) and
+[`PHASE_3_READINESS.md`](PHASE_3_READINESS.md).
 
 ### Exit criteria
-- Users can manage presets offline.
-- Exported presets can be imported on another installation.
-- Invalid or oversized files are rejected safely.
-- Schema version is checked and unsupported versions produce a clear message.
+- Users can manage presets offline. **Met.**
+- Exported presets can be imported on another installation. **Met by schema-v1 workflow and tests.**
+- Invalid or oversized files are rejected safely. **Met by unit/widget tests.**
+- Schema version is checked and unsupported versions produce a clear message. **Met.**
 
 ## 7. Phase 4 — Windows Audio Integration
 

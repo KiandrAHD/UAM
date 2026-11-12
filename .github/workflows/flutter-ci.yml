@@ -67,3 +67,48 @@ jobs:
         env:
           UAM_FFI_LIBRARY_PATH: ${{ github.workspace }}/crates/target/debug/libuam_ffi.so
         run: flutter test
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate preset fixtures against the published schema
+        run: |
+          python -m pip install --upgrade pip jsonschema
+          python scripts/test/validate_presets.py
+
+  windows-debug:
+    name: windows debug build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.6"
+          channel: stable
+          cache: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates
+
+      - name: Build Rust FFI library
+        working-directory: crates
+        run: cargo build --locked -p uam_ffi
+
+      - name: Resolve Flutter dependencies
+        working-directory: app/flutter
+        run: flutter pub get
+
+      - name: Build Windows debug
+        working-directory: app/flutter
+        run: flutter build windows --debug

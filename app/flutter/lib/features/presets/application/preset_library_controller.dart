@@ -1,66 +1,73 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
+import '../../../core/database/app_setting_keys.dart';
+import '../../../core/database/database_exception.dart';
+import '../../../features/backup/data/backup_service.dart';
+import '../../../features/backup/domain/backup_package.dart';
+import '../../../features/presets/data/preset_exchange_service.dart';
+import '../../../features/presets/data/preset_repository.dart';
+import '../../../features/presets/domain/preset_entry.dart';
+import '../../../features/presets/domain/preset_source.dart';
+import '../../../features/settings/data/settings_repository.dart';
+import '../../../platform/files/preset_file_gateway.dart';
 import '../../../shared/models/equalizer_configuration.dart';
 import '../../../shared/models/preset_document.dart';
 
-/// One preset in the local library.
-final class PresetEntry {
-  const PresetEntry({
-    required this.id,
-    required this.document,
-    required this.isBuiltIn,
-    this.isFavorite = false,
+/// State of a multi-step import preview.
+final class ImportPreviewState {
+  ImportPreviewState({
+    required this.candidate,
+    required this.selectedResolution,
   });
 
-  final String id;
-  final PresetDocument document;
-  final bool isBuiltIn;
-  final bool isFavorite;
+  final PresetImportCandidate candidate;
 
-  String get name => document.metadata.name;
-  String get category => document.metadata.tags.isEmpty
-      ? 'Uncategorised'
-      : document.metadata.tags.first;
-
-  PresetEntry copyWith({bool? isFavorite}) {
-    return PresetEntry(
-      id: id,
-      document: document,
-      isBuiltIn: isBuiltIn,
-      isFavorite: isFavorite ?? this.isFavorite,
-    );
-  }
+  /// The resolution the user has currently selected in the preview dialog.
+  DuplicateResolution selectedResolution;
 }
 
-/// Library tab filters.
-enum PresetLibrarySection {
-  all('All'),
-  favorites('Favorites'),
-  created('Created by me');
-
-  const PresetLibrarySection(this.label);
-
-  final String label;
-}
-
-/// Local, in-memory preset library.
+/// Application-layer controller for the local preset library.
 ///
-/// Phase 1 does not include SQLite persistence. Built-in entries mirror the
-/// repository's actual `presets/examples/` documents; they are not device data.
+/// This replaces the Phase 1 in-memory implementation. It is backed by a
+/// [PresetRepository] for persistence and a [PresetExchangeService] for
+/// validation and import/export. All public methods are async and safe to call
+/// from widgets.
 final class PresetLibraryController extends ChangeNotifier {
-  PresetLibraryController({List<PresetEntry>? initialEntries, String? activeId})
-    : _entries = List<PresetEntry>.of(
-        initialEntries ?? builtInPresetEntries(),
-      ) {
-    _activeId = activeId ?? _entries.firstOrNull?.id;
-  }
+  PresetLibraryController({
+    required PresetRepository repository,
+    required PresetExchangeService exchange,
+    required SettingsRepository settings,
+    PresetFileGateway? fileGateway,
+    required BackupService backup,
+  }) : _presetRepository = repository,
+       _presetExchange = exchange,
+       _settingsRepository = settings,
+       _fileGateway = fileGateway ?? const NativePresetFileGateway(),
+       _backupService = backup;
 
-  final List<PresetEntry> _entries;
+  final PresetRepository _presetRepository;
+  final PresetExchangeService _presetExchange;
+  final SettingsRepository _settingsRepository;
+  final PresetFileGateway _fileGateway;
+  final BackupService _backupService;
+
+  List<PresetEntry> _entries = <PresetEntry>[];
   String? _activeId;
+  bool _loading = false;
+  Object? _error;
 
   List<PresetEntry> get entries => List<PresetEntry>.unmodifiable(_entries);
   String? get activeId => _activeId;
+  bool get isLoading => _loading;
+  Object? get error => _error;
+
   PresetEntry? get active {
+    if (_activeId == null) {
+      return null;
+    }
     for (final entry in _entries) {
       if (entry.id == _activeId) {
         return entry;
@@ -76,6 +83,40 @@ final class PresetLibraryController extends ChangeNotifier {
     }
     final sorted = values.toList()..sort();
     return sorted;
+  }
+
+  /// Load presets from the repository and resolve the active preset.
+  ///
+  /// Called during app startup. Built-ins are seeded idempotently first.
+  Future<void> load() async {
+    _setLoading(true);
+    try {
+      await _presetRepository.ensureBuiltinsSeeded();
+      _entries = await _presetRepository.getAll();
+      _activeId = await _presetRepository.getActivePresetId();
+      if (_activeId != null && !await _presetRepository.exists(_activeId!)) {
+        _activeId = null;
+      }
+      if (_activeId == null && _entries.isNotEmpty) {
+        _activeId = _entries.first.id;
+        await _presetRepository.setActivePreset(_activeId);
+      }
+      _error = null;
+    } catch (error) {
+      _error = error;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Pull the persisted active preset id from the repository.
+  Future<void> refreshActivePreset() async {
+    try {
+      _activeId = await _presetRepository.getActivePresetId();
+      notifyListeners();
+    } on UamDataException catch (_) {
+      // Keep existing UI state if the database is transiently unavailable.
+    }
   }
 
   List<PresetEntry> filtered({
@@ -112,68 +153,151 @@ final class PresetLibraryController extends ChangeNotifier {
         .toList(growable: false);
   }
 
-  PresetEntry? activate(String id) {
-    final entry = _find(id);
-    if (entry == null) {
-      return null;
+  /// Persist the active preset id.
+  Future<bool> activate(String id) async {
+    if (!await _presetRepository.exists(id)) {
+      return false;
     }
+    await _presetRepository.setActivePreset(id);
     _activeId = id;
     notifyListeners();
-    return entry;
+    return true;
   }
 
-  PresetEntry? toggleFavorite(String id) {
+  /// Toggle favorite and refresh the in-memory entry.
+  ///
+  /// The repository is updated first: the UI never shows a favorite state that
+  /// was not persisted. On failure the previous entry is restored and the error
+  /// is recorded for the page to report.
+  Future<PresetEntry?> toggleFavorite(String id) async {
     final index = _entries.indexWhere((entry) => entry.id == id);
     if (index < 0) {
       return null;
     }
-    final updated = _entries[index].copyWith(
-      isFavorite: !_entries[index].isFavorite,
-    );
-    _entries[index] = updated;
+    final entry = _entries[index];
+    final next = !entry.isFavorite;
+    try {
+      final persisted = await _presetRepository.setFavorite(id, next);
+      if (!persisted) {
+        return entry;
+      }
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return entry;
+    }
+    final updated = entry.copyWith(isFavorite: next);
+    _entries = List<PresetEntry>.of(_entries)..[index] = updated;
+    _error = null;
     notifyListeners();
     return updated;
   }
 
-  PresetEntry? addPreset(
+  /// Create a new user preset.
+  ///
+  /// [id] may be supplied for deterministic tests; normally leave it null.
+  Future<PresetEntry?> addPreset(
     PresetDocument document, {
     String? id,
     bool activate = false,
-  }) {
-    // Re-parse the generated document so the library cannot accept a preset
-    // that violates schema version 1.
-    if (!PresetCodec.parse(document.toPrettyJson()).isValid) {
+  }) async {
+    try {
+      final entry = await _presetRepository.create(
+        document,
+        id: id,
+        source: PresetSource.user,
+      );
+      _entries = await _presetRepository.getAll();
+      if (activate) {
+        _activeId = entry.id;
+        await _presetRepository.setActivePreset(entry.id);
+      }
+      notifyListeners();
+      return entry;
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
       return null;
     }
-    final entry = PresetEntry(
-      id: id ?? 'user-${DateTime.now().microsecondsSinceEpoch}',
-      document: document,
-      isBuiltIn: false,
-    );
-    _entries.add(entry);
-    if (activate) {
-      _activeId = entry.id;
-    }
-    notifyListeners();
-    return entry;
   }
 
-  PresetEntry? importJson(String source, {bool activate = true}) {
-    final result = PresetCodec.parse(source);
-    final document = result.preset;
-    if (!result.isValid || document == null) {
+  /// Import a validated document from a string.
+  Future<PresetEntry?> importJson(String source, {bool activate = true}) async {
+    final bytes = Uint8List.fromList(utf8.encode(source));
+    final result = await _presetExchange.prepareImport(bytes);
+    if (!result.isValid || result.candidate == null) {
+      _error = result.errors.join('\n');
+      notifyListeners();
       return null;
     }
-    return addPreset(document, activate: activate);
+    return importCandidate(result.candidate!, DuplicateResolution.importAsNew);
   }
 
-  PresetEntry? createFromEqualizer({
+  /// Persist a prepared import candidate.
+  Future<PresetEntry?> importCandidate(
+    PresetImportCandidate candidate,
+    DuplicateResolution resolution,
+  ) async {
+    try {
+      final entry = await _presetExchange.commitImport(candidate, resolution);
+      _entries = await _presetRepository.getAll();
+      if (entry != null) {
+        _activeId = entry.id;
+        await _presetRepository.setActivePreset(entry.id);
+      }
+      _error = null;
+      notifyListeners();
+      return entry;
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Let the user pick a preset file, validate it, and return a candidate for
+  /// confirmation. Returns null when the user cancels the picker.
+  Future<PresetImportResult?> pickImport() async {
+    final picked = await _fileGateway.pickPresetFile();
+    if (picked == null) {
+      return null;
+    }
+    return _presetExchange.prepareImport(picked.bytes);
+  }
+
+  /// Validate a pasted `.uam-preset.json` document without writing anything.
+  Future<PresetImportResult> prepareImport(String source) {
+    final bytes = Uint8List.fromList(utf8.encode(source));
+    return _presetExchange.prepareImport(bytes);
+  }
+
+  /// Export one preset to a user-chosen file.
+  Future<String?> exportPreset(PresetEntry entry) async {
+    try {
+      final export = _presetExchange.buildExport(entry);
+      return _fileGateway.savePresetFile(
+        suggestedName: export.fileName,
+        bytes: export.utf8Bytes,
+      );
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Copy the preset JSON to the clipboard as a convenience fallback.
+  String exportPresetToString(PresetEntry entry) =>
+      utf8.decode(_presetExchange.buildExport(entry).utf8Bytes);
+
+  /// Create a preset from the current equalizer configuration.
+  Future<PresetEntry?> createFromEqualizer({
     required String name,
     required EqualizerConfiguration configuration,
     String? author,
     String? description,
     bool activate = true,
-  }) {
+  }) async {
     final document = PresetDocument.fromEqualizer(
       name: name,
       author: author,
@@ -183,17 +307,128 @@ final class PresetLibraryController extends ChangeNotifier {
     return addPreset(document, activate: activate);
   }
 
-  bool removePreset(String id) {
-    final index = _entries.indexWhere((entry) => entry.id == id);
-    if (index < 0 || _entries[index].isBuiltIn) {
+  /// Delete a user/imported preset. Built-ins are protected.
+  Future<bool> removePreset(String id) async {
+    final entry = _find(id);
+    if (entry == null || entry.isBuiltIn) {
       return false;
     }
-    _entries.removeAt(index);
-    if (_activeId == id) {
-      _activeId = null;
+    try {
+      final removed = await _presetRepository.delete(id);
+      if (removed) {
+        _entries = await _presetRepository.getAll();
+        if (_activeId == id) {
+          _activeId = _entries.firstOrNull?.id;
+          await _presetRepository.setActivePreset(_activeId);
+        }
+        notifyListeners();
+      }
+      return removed;
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return false;
     }
-    notifyListeners();
-    return true;
+  }
+
+  /// Create a backup to a user-chosen file.
+  Future<BackupWriteResult?> createBackup(String destinationPath) async {
+    try {
+      final result = await _backupService.writeBackup(destinationPath);
+      _error = null;
+      notifyListeners();
+      return result;
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Ask the user where to save a backup, then write it there.
+  ///
+  /// Returns null when the user cancels or the write fails.
+  Future<BackupWriteResult?> backupToChosenFile() async {
+    try {
+      final built = await _backupService.buildBytes();
+      final path = await _fileGateway.saveBackupFile(
+        suggestedName: _backupService.suggestedFileName(),
+        bytes: built.bytes,
+      );
+      if (path == null) {
+        return null;
+      }
+      await _backupService.recordBackup(path, built.bytes.length);
+      _error = null;
+      notifyListeners();
+      return BackupWriteResult(
+        path: path,
+        bytes: built.bytes.length,
+        presetCount: built.package.presets.length,
+        checksum: '',
+      );
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Ask the user to pick a backup file and validate it for confirmation.
+  Future<BackupPackage?> pickAndInspectBackup() async {
+    try {
+      final picked = await _fileGateway.pickBackupFile();
+      if (picked == null) {
+        return null;
+      }
+      final package = BackupCodec.parse(picked.bytes);
+      _error = null;
+      return package;
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Read and validate a backup container for confirmation.
+  Future<BackupPackage?> inspectBackup(String path) async {
+    try {
+      final package = await _backupService.inspectBackup(path);
+      _error = null;
+      return package;
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Restore [package] after explicit user confirmation.
+  Future<RestoreReport?> restoreBackup(BackupPackage package) async {
+    try {
+      final report = await _backupService.restore(package, confirmed: true);
+      _entries = await _presetRepository.getAll();
+      _activeId = await _presetRepository.getActivePresetId();
+      _error = null;
+      notifyListeners();
+      return report;
+    } on UamDataException catch (error) {
+      _error = error;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Last backup timestamp and display path from settings, if any.
+  Future<(String?, String?)> lastBackupInfo() async {
+    final at = await _settingsRepository.get<String>(
+      AppSettingKeys.lastBackupAt,
+    );
+    final path = await _settingsRepository.get<String>(
+      AppSettingKeys.lastBackupPath,
+    );
+    return (at, path);
   }
 
   PresetEntry? _find(String id) {
@@ -204,117 +439,36 @@ final class PresetLibraryController extends ChangeNotifier {
     }
     return null;
   }
+
+  void _setLoading(bool value) {
+    if (_loading == value) {
+      return;
+    }
+    _loading = value;
+    notifyListeners();
+  }
+
+  /// Clear the last recorded error.
+  void clearError() {
+    if (_error == null) {
+      return;
+    }
+    _error = null;
+    notifyListeners();
+  }
 }
 
-/// Built-in presets copied from the repository's Phase 0 examples.
-List<PresetEntry> builtInPresetEntries() {
-  return <PresetEntry>[
-    PresetEntry(
-      id: 'builtin-balanced-warm',
-      isBuiltIn: true,
-      document: PresetDocument(
-        metadata: const PresetMetadata(
-          name: 'Balanced Warm',
-          author: 'UAM Phase 0 Fixture',
-          description:
-              'A balanced profile with gentle low-frequency warmth and a soft '
-              'treble lift.',
-          createdAt: '2026-01-01T00:00:00Z',
-          tags: <String>['balanced', 'warm'],
-        ),
-        compatibility: const PresetCompatibility(),
-        audio: PresetAudio(
-          preampDb: -2,
-          bands: const <EqBandConfiguration>[
-            EqBandConfiguration(
-              filterType: EqFilterType.peaking,
-              frequencyHz: 60,
-              gainDb: 2,
-              q: 1,
-            ),
-            EqBandConfiguration(
-              filterType: EqFilterType.peaking,
-              frequencyHz: 250,
-              gainDb: 1,
-              q: 1,
-            ),
-            EqBandConfiguration(
-              filterType: EqFilterType.peaking,
-              frequencyHz: 1000,
-              gainDb: 0,
-              q: 1,
-            ),
-            EqBandConfiguration(
-              filterType: EqFilterType.peaking,
-              frequencyHz: 4000,
-              gainDb: -1,
-              q: 1,
-            ),
-            EqBandConfiguration(
-              filterType: EqFilterType.peaking,
-              frequencyHz: 10000,
-              gainDb: 1.5,
-              q: 1,
-            ),
-          ],
-        ),
-      ),
-    ),
-    PresetEntry(
-      id: 'builtin-neutral-reference',
-      isBuiltIn: true,
-      document: PresetDocument(
-        metadata: const PresetMetadata(
-          name: 'Neutral Reference',
-          author: 'UAM Phase 0 Fixture',
-          description:
-              'Zero preamp and no bands. Useful for verifying that a valid '
-              'preset may contain an empty equalizer list.',
-          createdAt: '2026-03-01T08:00:00Z',
-          tags: <String>['neutral', 'reference'],
-        ),
-        compatibility: const PresetCompatibility(),
-        audio: const PresetAudio(preampDb: 0, bands: <EqBandConfiguration>[]),
-      ),
-    ),
-    PresetEntry(
-      id: 'builtin-shelf-bass-boost',
-      isBuiltIn: true,
-      document: PresetDocument(
-        metadata: const PresetMetadata(
-          name: 'Shelf Bass Boost',
-          author: 'UAM Phase 0 Fixture',
-          description:
-              'Low-shelf bass lift with a restrained high-shelf cut, used to '
-              'exercise both shelving filter shapes.',
-          createdAt: '2026-02-14T12:30:00Z',
-          tags: <String>['bass', 'shelf'],
-        ),
-        compatibility: const PresetCompatibility(
-          requiredCapabilities: <String>['dsp.eq.peaking', 'dsp.eq.shelving'],
-        ),
-        audio: PresetAudio(
-          preampDb: -4.5,
-          bands: const <EqBandConfiguration>[
-            EqBandConfiguration(
-              filterType: EqFilterType.lowShelf,
-              frequencyHz: 120,
-              gainDb: 6,
-              q: 0.707,
-            ),
-            EqBandConfiguration(
-              filterType: EqFilterType.highShelf,
-              frequencyHz: 8000,
-              gainDb: -2.5,
-              q: 0.707,
-            ),
-          ],
-        ),
-      ),
-    ),
-  ];
+/// Library tab filters (kept for backward compatibility with the UI).
+enum PresetLibrarySection {
+  all('All'),
+  favorites('Favorites'),
+  created('Created by me');
+
+  const PresetLibrarySection(this.label);
+
+  final String label;
 }
 
-extension on List<PresetEntry> {
-  PresetEntry? get firstOrNull => isEmpty ? null : first;
+extension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

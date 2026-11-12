@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../app/state/uam_app_controller.dart';
 import '../../../design_system/components/uam_components.dart';
@@ -12,11 +13,16 @@ import '../../../design_system/tokens/uam_spacing.dart';
 import '../../../design_system/tokens/uam_typography.dart';
 import '../../../shared/models/preset_document.dart';
 import '../application/preset_library_controller.dart';
+import '../data/preset_exchange_service.dart';
+import '../domain/preset_entry.dart';
+import '../domain/preset_source.dart';
 
 /// Local preset library: browse, filter, preview, import, and export.
 ///
-/// The library is in-memory in Phase 1. Import validation mirrors the schema
-/// contract and is labelled as local; no Rust validation call is claimed.
+/// The library is backed by the SQLite repository: built-in presets are seeded
+/// once, user and imported presets persist across restarts, favorites and the
+/// active preset survive a full application restart. Import validation runs
+/// before any database write, so a rejected document never changes stored data.
 class PresetsPage extends StatefulWidget {
   const PresetsPage({super.key});
 
@@ -38,11 +44,12 @@ class _PresetsPageState extends State<PresetsPage> {
   @override
   Widget build(BuildContext context) {
     final controller = UamAppScope.of(context);
-    final categories = <String>['All', ...controller.presets.categories];
+    final library = controller.presets;
+    final categories = <String>['All', ...library.categories];
     if (!categories.contains(_category)) {
       _category = 'All';
     }
-    final entries = controller.presets.filtered(
+    final entries = library.filtered(
       query: _searchController.text,
       section: _section,
       category: _category,
@@ -56,9 +63,10 @@ class _PresetsPageState extends State<PresetsPage> {
           eyebrow: 'Local library',
           title: 'Presets',
           description:
-              'Browse the local profile library, preview a tuning, and import a '
-              'portable .uam-preset.json document. Validation is performed '
-              'locally against schema version 1.',
+              'Browse the persisted local profile library, preview a tuning, '
+              'and import or export a portable .uam-preset.json document. '
+              'Validation is performed locally against schema version 1 before '
+              'anything is written to the database.',
           actions: <Widget>[
             FilledButton.icon(
               onPressed: () => _showImportDialog(context, controller),
@@ -78,7 +86,27 @@ class _PresetsPageState extends State<PresetsPage> {
           onCategoryChanged: (category) => setState(() => _category = category),
         ),
         const SizedBox(height: UamSpacing.xl),
-        if (entries.isEmpty)
+        if (library.error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: UamSpacing.lg),
+            child: UamNotice(
+              tone: UamStatusTone.error,
+              title: 'The preset library could not be updated',
+              message: _describeError(library.error!),
+            ),
+          ),
+        if (library.isLoading && library.entries.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: UamSpacing.empty),
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            ),
+          )
+        else if (entries.isEmpty)
           UamEmptyState(
             icon: Icons.library_music_outlined,
             title: 'No presets match',
@@ -104,10 +132,11 @@ class _PresetsPageState extends State<PresetsPage> {
               for (final entry in entries)
                 _PresetCard(
                   entry: entry,
-                  active: controller.presets.activeId == entry.id,
+                  active: library.activeId == entry.id,
                   onPreview: () => controller.activatePreset(entry.id),
-                  onFavorite: () => controller.presets.toggleFavorite(entry.id),
-                  onExport: () => _exportPreset(context, entry),
+                  onFavorite: () => library.toggleFavorite(entry.id),
+                  onExport: () => _exportPreset(context, controller, entry),
+                  onCopy: () => _copyPreset(context, controller, entry),
                   onDelete: entry.isBuiltIn
                       ? null
                       : () => _confirmDelete(context, controller, entry),
@@ -117,18 +146,47 @@ class _PresetsPageState extends State<PresetsPage> {
         const SizedBox(height: UamSpacing.xl),
         const UamNotice(
           tone: UamStatusTone.info,
-          title: 'Portable format',
+          title: 'Persisted locally',
           message:
               'UAM presets use the .uam-preset.json format, schema version 1. '
-              'Built-in entries mirror the repository reference presets and are '
-              'not device data. Persistence arrives in a later phase.',
+              'The library, favorites, and the active preset are stored in the '
+              'local SQLite database and survive a restart. Built-in entries '
+              'are seeded once and cannot be deleted or overwritten.',
         ),
       ],
     );
   }
 
-  Future<void> _exportPreset(BuildContext context, PresetEntry entry) async {
-    await Clipboard.setData(ClipboardData(text: entry.document.toPrettyJson()));
+  Future<void> _exportPreset(
+    BuildContext context,
+    UamAppController controller,
+    PresetEntry entry,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final path = await controller.presets.exportPreset(entry);
+    if (path == null) {
+      // The user cancelled the save dialog, or the write failed and the
+      // controller recorded an error the page already surfaces.
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          '"${entry.name}" exported as ${p.basename(path)} '
+          '(.uam-preset.json).',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _copyPreset(
+    BuildContext context,
+    UamAppController controller,
+    PresetEntry entry,
+  ) async {
+    await Clipboard.setData(
+      ClipboardData(text: controller.presets.exportPresetToString(entry)),
+    );
     if (!context.mounted) {
       return;
     }
@@ -147,8 +205,8 @@ class _PresetsPageState extends State<PresetsPage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete preset'),
         content: Text(
-          '"${entry.name}" will be removed from the local library. This cannot '
-          'be undone.',
+          '"${entry.name}" will be removed from the persisted library. This '
+          'cannot be undone.',
         ),
         actions: <Widget>[
           TextButton(
@@ -165,10 +223,37 @@ class _PresetsPageState extends State<PresetsPage> {
         ],
       ),
     );
-    if (confirmed ?? false) {
-      controller.presets.removePreset(entry.id);
+    if (!(confirmed ?? false)) {
+      return;
+    }
+    final removed = await controller.presets.removePreset(entry.id);
+    if (!context.mounted) {
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    if (removed) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('"${entry.name}" was deleted.')),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '"${entry.name}" was not deleted. Built-in presets are protected.',
+          ),
+        ),
+      );
     }
   }
+}
+
+String _describeError(Object error) {
+  if (error is Exception) {
+    final text = error.toString();
+    final colon = text.indexOf(': ');
+    return colon >= 0 ? text.substring(colon + 2) : text;
+  }
+  return error.toString();
 }
 
 class _PresetToolbar extends StatelessWidget {
@@ -317,6 +402,7 @@ class _PresetCard extends StatelessWidget {
     required this.onPreview,
     required this.onFavorite,
     required this.onExport,
+    required this.onCopy,
     required this.onDelete,
   });
 
@@ -325,6 +411,7 @@ class _PresetCard extends StatelessWidget {
   final VoidCallback onPreview;
   final VoidCallback onFavorite;
   final VoidCallback onExport;
+  final VoidCallback onCopy;
   final VoidCallback? onDelete;
 
   @override
@@ -341,6 +428,17 @@ class _PresetCard extends StatelessWidget {
           Row(
             children: <Widget>[
               CapabilityBadge(label: entry.category, tone: UamStatusTone.info),
+              const SizedBox(width: UamSpacing.sm),
+              if (entry.isBuiltIn)
+                const CapabilityBadge(
+                  label: 'Built-in',
+                  tone: UamStatusTone.muted,
+                )
+              else if (entry.source == PresetSource.imported)
+                const CapabilityBadge(
+                  label: 'Imported',
+                  tone: UamStatusTone.planned,
+                ),
               const Spacer(),
               if (active)
                 const CapabilityBadge(
@@ -383,14 +481,16 @@ class _PresetCard extends StatelessWidget {
             style: UamTypography.micro.copyWith(color: colors.textTertiary),
           ),
           const SizedBox(height: UamSpacing.lg),
-          Row(
+          Wrap(
+            spacing: UamSpacing.xs,
+            runSpacing: UamSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: <Widget>[
               FilledButton.icon(
                 onPressed: active ? null : onPreview,
                 icon: const Icon(Icons.play_arrow_rounded, size: 17),
                 label: Text(active ? 'Active' : 'Preview'),
               ),
-              const Spacer(),
               UamIconButton(
                 icon: entry.isFavorite ? Icons.favorite : Icons.favorite_border,
                 label: entry.isFavorite
@@ -400,9 +500,14 @@ class _PresetCard extends StatelessWidget {
                 onPressed: onFavorite,
               ),
               UamIconButton(
-                icon: Icons.ios_share_outlined,
-                label: 'Copy as .uam-preset.json',
+                icon: Icons.save_alt_outlined,
+                label: 'Export to .uam-preset.json',
                 onPressed: onExport,
+              ),
+              UamIconButton(
+                icon: Icons.content_copy_outlined,
+                label: 'Copy preset JSON',
+                onPressed: onCopy,
               ),
               if (onDelete != null)
                 UamIconButton(
@@ -428,8 +533,8 @@ Future<void> _showImportDialog(
   );
 }
 
-/// Owns the import text controller so it is disposed with the dialog state,
-/// after the route has actually left the tree.
+/// Multi-step import: pick/paste, validate, preview, resolve duplicates,
+/// confirm. Nothing is written until the user confirms.
 class _ImportPresetDialog extends StatefulWidget {
   const _ImportPresetDialog({required this.controller});
 
@@ -441,7 +546,10 @@ class _ImportPresetDialog extends StatefulWidget {
 
 class _ImportPresetDialogState extends State<_ImportPresetDialog> {
   final TextEditingController _textController = TextEditingController();
-  PresetParseResult? _result;
+  PresetImportResult? _result;
+  DuplicateResolution _resolution = DuplicateResolution.importAsNew;
+  bool _busy = false;
+  String? _sourceName;
 
   @override
   void dispose() {
@@ -449,38 +557,130 @@ class _ImportPresetDialogState extends State<_ImportPresetDialog> {
     super.dispose();
   }
 
-  void _import() {
-    final entry = widget.controller.presets.importJson(_textController.text);
-    final messenger = ScaffoldMessenger.of(context);
-    Navigator.of(context).pop();
-    if (entry == null) {
+  Future<void> _pickFile() async {
+    setState(() => _busy = true);
+    try {
+      final result = await widget.controller.presets.pickImport();
+      if (!mounted) {
+        return;
+      }
+      if (result == null) {
+        // The user cancelled the picker: leave the dialog untouched.
+        return;
+      }
+      setState(() {
+        _result = result;
+        _sourceName = result.isValid ? 'selected file' : null;
+        _resolution = _defaultResolution(result.candidate);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _validatePasted() async {
+    setState(() => _busy = true);
+    try {
+      final result = await widget.controller.presets.prepareImport(
+        _textController.text,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _result = result;
+        _sourceName = 'pasted document';
+        _resolution = _defaultResolution(result.candidate);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  DuplicateResolution _defaultResolution(PresetImportCandidate? candidate) {
+    if (candidate == null) {
+      return DuplicateResolution.importAsNew;
+    }
+    return switch (candidate.conflict) {
+      ImportConflict.builtInCollision => DuplicateResolution.keepExisting,
+      _ => DuplicateResolution.importAsNew,
+    };
+  }
+
+  Future<void> _commit() async {
+    final candidate = _result?.candidate;
+    if (candidate == null) {
       return;
     }
-    widget.controller.activatePreset(entry.id);
-    messenger.showSnackBar(
-      SnackBar(content: Text('"${entry.name}" imported to the local library.')),
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final entry = await widget.controller.presets.importCandidate(
+      candidate,
+      _resolution,
     );
+    if (!mounted) {
+      return;
+    }
+    navigator.pop();
+    if (entry != null) {
+      await widget.controller.activatePreset(entry.id);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('"${entry.name}" was imported to the local library.'),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('The existing preset was kept.')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final result = _result;
+    final candidate = result?.candidate;
+    final canImport = result?.isValid ?? false;
     return AlertDialog(
       title: const Text('Import preset'),
       content: SizedBox(
-        width: 520,
+        width: 560,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Text(
-                'Paste a .uam-preset.json document. Validation runs '
-                'locally against schema version 1; the Rust core does not '
-                'expose a preset-validation symbol in this build.',
+                'Choose a .uam-preset.json file or paste a document. UAM '
+                'validates the schema, numeric boundaries, and filter '
+                'definitions locally before anything is stored.',
                 style: UamTypography.description.copyWith(
                   color: context.uamColors.textSecondary,
                 ),
+              ),
+              const SizedBox(height: UamSpacing.lg),
+              Row(
+                children: <Widget>[
+                  OutlinedButton.icon(
+                    key: const Key('preset-import-pick'),
+                    onPressed: _busy ? null : _pickFile,
+                    icon: const Icon(Icons.folder_open_outlined, size: 17),
+                    label: const Text('Choose file'),
+                  ),
+                  const SizedBox(width: UamSpacing.md),
+                  if (_sourceName != null)
+                    Text(
+                      'Source: $_sourceName',
+                      style: UamTypography.micro.copyWith(
+                        color: context.uamColors.textTertiary,
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: UamSpacing.lg),
               TextField(
@@ -494,7 +694,10 @@ class _ImportPresetDialogState extends State<_ImportPresetDialog> {
                 ),
                 onChanged: (_) {
                   if (_result != null) {
-                    setState(() => _result = null);
+                    setState(() {
+                      _result = null;
+                      _sourceName = null;
+                    });
                   }
                 },
               ),
@@ -502,22 +705,29 @@ class _ImportPresetDialogState extends State<_ImportPresetDialog> {
                 const SizedBox(height: UamSpacing.lg),
                 _ImportResultPanel(result: result),
               ],
+              if (candidate != null && candidate.needsDecision) ...<Widget>[
+                const SizedBox(height: UamSpacing.lg),
+                _DuplicateResolutionSelector(
+                  candidate: candidate,
+                  selected: _resolution,
+                  onChanged: (value) => setState(() => _resolution = value),
+                ),
+              ],
             ],
           ),
         ),
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _busy ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
         OutlinedButton(
-          onPressed: () =>
-              setState(() => _result = PresetCodec.parse(_textController.text)),
+          onPressed: _busy ? null : _validatePasted,
           child: const Text('Validate'),
         ),
         FilledButton(
-          onPressed: (result?.isValid ?? false) ? _import : null,
+          onPressed: (canImport && !_busy) ? _commit : null,
           child: const Text('Import'),
         ),
       ],
@@ -528,21 +738,32 @@ class _ImportPresetDialogState extends State<_ImportPresetDialog> {
 class _ImportResultPanel extends StatelessWidget {
   const _ImportResultPanel({required this.result});
 
-  final PresetParseResult result;
+  final PresetImportResult result;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.uamColors;
     if (result.isValid) {
-      final preset = result.preset!;
-      return UamNotice(
-        tone: UamStatusTone.success,
-        title: 'Valid preset',
-        message:
-            '"${preset.metadata.name}" is well-formed: '
-            '${preset.bandCount} bands, preamp '
-            '${preset.audio.preampDb.toStringAsFixed(1)} dB, schema version '
-            '${PresetDocument.schemaVersion}.',
+      final candidate = result.candidate!;
+      final preset = candidate.document;
+      final warnings = candidate.compatibilityWarnings;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          UamNotice(
+            tone: UamStatusTone.success,
+            title: 'Valid preset',
+            message:
+                '"${preset.metadata.name}" is well-formed: '
+                '${preset.bandCount} bands, preamp '
+                '${preset.audio.preampDb.toStringAsFixed(1)} dB, schema version '
+                '${PresetDocument.schemaVersion}.',
+          ),
+          for (final warning in warnings) ...<Widget>[
+            const SizedBox(height: UamSpacing.sm),
+            UamNotice(tone: UamStatusTone.warning, message: warning),
+          ],
+        ],
       );
     }
     return Container(
@@ -580,6 +801,87 @@ class _ImportResultPanel extends StatelessWidget {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DuplicateResolutionSelector extends StatelessWidget {
+  const _DuplicateResolutionSelector({
+    required this.candidate,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final PresetImportCandidate candidate;
+  final DuplicateResolution selected;
+  final ValueChanged<DuplicateResolution> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.uamColors;
+    final conflict = candidate.conflict;
+    final existingName = candidate.existingName ?? candidate.existingId ?? '';
+    final canReplace =
+        conflict == ImportConflict.identifierInUse ||
+        conflict == ImportConflict.identicalContent;
+    return UamCard(
+      padding: const EdgeInsets.all(UamSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            'This document conflicts with an existing preset',
+            style: UamTypography.cardTitle.copyWith(color: colors.textPrimary),
+          ),
+          const SizedBox(height: UamSpacing.xs),
+          Text(
+            switch (conflict) {
+              ImportConflict.identifierInUse =>
+                'Another preset already uses this identifier ("$existingName").',
+              ImportConflict.identicalContent =>
+                'An identical preset already exists ("$existingName").',
+              ImportConflict.nameInUse =>
+                'Another preset already uses the name "$existingName".',
+              ImportConflict.builtInCollision =>
+                'The name resolves to the reserved built-in "$existingName". '
+                    'Built-in presets can never be replaced.',
+              ImportConflict.none => 'No conflict.',
+            },
+            style: UamTypography.description.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: UamSpacing.md),
+          RadioGroup<DuplicateResolution>(
+            groupValue: selected,
+            onChanged: (value) {
+              if (value != null) {
+                onChanged(value);
+              }
+            },
+            child: Column(
+              children: <Widget>[
+                const RadioListTile<DuplicateResolution>(
+                  value: DuplicateResolution.keepExisting,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Keep the existing preset'),
+                ),
+                const RadioListTile<DuplicateResolution>(
+                  value: DuplicateResolution.importAsNew,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Import as a new preset with a new identifier'),
+                ),
+                if (canReplace)
+                  const RadioListTile<DuplicateResolution>(
+                    value: DuplicateResolution.replaceExisting,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Replace the existing user preset'),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );

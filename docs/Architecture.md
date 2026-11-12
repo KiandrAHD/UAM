@@ -236,6 +236,16 @@ Rules:
 - Sharing can happen through user-selected file destinations or external services.
 - The app should not silently upload files.
 
+### Implemented Phase 3 storage
+
+Phase 3 implements the local persistence boundary in Flutter through
+`sqflite_common_ffi` and `sqlite3_flutter_libs`. The production path is
+`<application-support>/UAM/uam.db`; migrations use `PRAGMA user_version` and
+startup verifies SQLite integrity. `UamServices` composes the database,
+repositories, preset exchange, backup, and platform file gateway. Production
+startup has no in-memory fallback. See `DATABASE_DESIGN.md` and
+`DATABASE_MIGRATIONS.md`.
+
 ### Suggested SQLite tables
 
 | Table | Purpose |
@@ -518,3 +528,37 @@ reported processing scope stays `configuration_only`. It does not provide
 system-wide audio processing, audio capture, Bluetooth controls, or an Android
 real-time audio backend. See `docs/ANDROID_SETUP.md` and
 `docs/ANDROID_BUILD_REPORT.md` for toolchain setup and validation evidence.
+
+## 19. Phase 3 implementation notes
+
+Phase 3 adds the local data plane and preset exchange. It stays inside the
+persistence and platform-service boundaries and does not touch the audio path.
+
+- **Composition root.** `UamServices` owns one SQLite connection plus the preset
+  repository, settings repository, exchange service, backup service, and file
+  gateway. It is created once in `bootstrap()` and injected into `UamApp`; there
+  is no global mutable singleton and no volatile fallback in production.
+- **Failure surface.** A failed open, migration, or integrity check throws
+  `UamDataException` and `bootstrap()` renders `UamBootstrapErrorApp` instead of
+  continuing with partial storage. An unreadable file is reported as
+  `corruptDatabase`.
+- **Startup ordering.** Persisted theme, reduced motion, and launch-at-startup are
+  read before the first frame, so the saved theme is applied without a flash.
+- **Preset identity.** Rows carry `source` (`builtin`/`imported`/`user`). Built-ins
+  use stable IDs, are seeded idempotently, preserve favorite state, and can never
+  be updated or deleted by import or restore.
+- **Interchange validation.** Import bounds input to 256 KiB, requires UTF-8,
+  validates schema-v1 shape and every DSP numeric range, and previews read-only.
+  Writes happen only after the user resolves a duplicate. In this phase the Dart
+  `PresetCodec` is the authoritative validator; no Rust FFI validation symbol is
+  added and `database/schema/preset.schema.json` remains the contract of record.
+- **Backup container.** `.uam-backup` v1 stores canonical JSON data with a SHA-256
+  checksum, a database schema version, an 8 MiB bound, and excludes `internal.`
+  settings. Restore verifies the whole package, attempts a pre-restore snapshot,
+  then applies presets and user-facing settings in one transaction followed by
+  integrity and equivalence checks.
+- **Platform file access.** File pick/save is behind `PresetFileGateway`, so the
+  domain layer never calls a platform channel and widget tests inject a fake.
+- **Not implemented:** audio backend, device discovery, cloud sync, and Rust-side
+  preset validation. See `docs/PHASE_3_IMPLEMENTATION_REPORT.md` and
+  `docs/PHASE_3_READINESS.md`.

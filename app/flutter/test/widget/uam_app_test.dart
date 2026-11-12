@@ -4,6 +4,8 @@ import 'package:uam/bridge/rust_api.dart';
 import 'package:uam/core/errors/uam_failure.dart';
 import 'package:uam/core/result/result.dart';
 
+import '../support/test_harness.dart';
+
 final class _FakeGateway implements EngineInfoGateway {
   const _FakeGateway(this.result);
 
@@ -27,11 +29,13 @@ const EngineInfo _engineInfo = EngineInfo(
 
 void main() {
   testWidgets('renders Rust core information on success', (tester) async {
+    final services = await createWidgetTestServices(tester);
     await tester.pumpWidget(
-      const UamApp(
-        engineInfoGateway: _FakeGateway(
+      UamApp(
+        engineInfoGateway: const _FakeGateway(
           Result<EngineInfo>.success(_engineInfo),
         ),
+        services: services,
       ),
     );
     await tester.pumpAndSettle();
@@ -46,9 +50,10 @@ void main() {
   testWidgets('renders a safe failure state when the bridge is missing', (
     tester,
   ) async {
+    final services = await createWidgetTestServices(tester);
     await tester.pumpWidget(
-      const UamApp(
-        engineInfoGateway: _FakeGateway(
+      UamApp(
+        engineInfoGateway: const _FakeGateway(
           Result<EngineInfo>.failure(
             UamFailure(
               code: UamFailureCode.bridgeUnavailable,
@@ -56,6 +61,7 @@ void main() {
             ),
           ),
         ),
+        services: services,
       ),
     );
     await tester.pumpAndSettle();

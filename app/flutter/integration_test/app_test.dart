@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:uam/app/services/uam_services.dart';
 import 'package:uam/app/uam_app.dart';
 import 'package:uam/bridge/rust_api.dart';
 import 'package:uam/core/result/result.dart';
@@ -28,7 +29,13 @@ void main() {
   testWidgets('Phase 0 shell starts and renders the core panel', (
     tester,
   ) async {
-    await tester.pumpWidget(const UamApp(engineInfoGateway: _SmokeGateway()));
+    // A real temporary SQLite database keeps this smoke test off the developer
+    // machine's application-support directory.
+    final services = await UamServices.forTesting();
+    addTearDown(services.dispose);
+    await tester.pumpWidget(
+      UamApp(engineInfoGateway: const _SmokeGateway(), services: services),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Rust core connected'), findsOneWidget);

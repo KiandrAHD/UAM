@@ -57,15 +57,18 @@ reports capability evidence.
 | **Phase 1** — foundation and UX (shell, design system, modules) | Implemented and validated in the available Flutter/Rust test environment |
 | **Phase 2.1–2.3, 2.6** — DSP core (config, EQ, limiter, metering, pipeline, benchmarks) | Implemented and tested; no live audio callback yet |
 | **Phase 2.7** — repository stabilization and Android CI repair | Android CI failure root-caused and fixed (obsolete `tools` package); cross-compilation, symbols, and APK re-verified locally; device/CI validation deferred |
+| **Phase 3** — local data and preset exchange | Implemented and locally validated: SQLite persistence, preset CRUD, settings persistence, preset import/export, and backup/restore. Windows CI build and device validation remain pending. |
 | **Android** — platform support and Rust FFI packaging | Implemented; a debug APK builds locally and contains `lib/arm64-v8a/libuam_ffi.so`. Not device-validated |
 | **Audio backend / system-wide processing** | Not implemented. Processing scope is `configuration_only` |
 
-Recorded validation on the reference host: 127 Rust tests, 68 Flutter tests,
-and 3 valid / 8 invalid preset fixtures. DSP benchmarks meet the `< 2 %` of one
-core target (stereo 10-band EQ + limiter at 48 kHz / 256 frames). Phase 2.7
-re-verified the Android build script (debug + release), APK packaging, native
-symbols, and the Windows/Rust/Flutter regressions. See
-[`docs/Roadmap.md`](docs/Roadmap.md) and the phase reports for evidence.
+Recorded Phase 3 validation on the reference host: Rust format, clippy, and
+tests pass; Flutter format and analysis pass; all 190 Flutter tests pass; and
+preset fixtures report 3 valid / 8 invalid. The Android arm64 debug APK builds
+locally. `flutter build windows --debug` is blocked locally because this host
+lacks Windows Developer Mode/symlink permission; a Windows CI build job covers
+that gate. See [`docs/PHASE_3_IMPLEMENTATION_REPORT.md`](docs/PHASE_3_IMPLEMENTATION_REPORT.md),
+[`docs/PHASE_3_READINESS.md`](docs/PHASE_3_READINESS.md), and
+[`docs/Roadmap.md`](docs/Roadmap.md) for evidence and limitations.
 
 ### Repository layout
 
@@ -344,6 +347,10 @@ See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) for the full matrix.
 - [Phase 2 implementation report](docs/PHASE_2_IMPLEMENTATION_REPORT.md)
 - [Phase 2.3 design](docs/PHASE_2_3_DESIGN.md)
 - [Phase 2.3 implementation report](docs/PHASE_2_3_IMPLEMENTATION_REPORT.md)
+- [Phase 3 implementation report](docs/PHASE_3_IMPLEMENTATION_REPORT.md)
+- [Phase 3 readiness](docs/PHASE_3_READINESS.md)
+- [Database design](docs/DATABASE_DESIGN.md) · [Migrations](docs/DATABASE_MIGRATIONS.md)
+- [Preset exchange](docs/PRESET_EXCHANGE.md) · [Backup and restore](docs/BACKUP_RESTORE.md)
 - [Android setup](docs/ANDROID_SETUP.md) · [Android build report](docs/ANDROID_BUILD_REPORT.md)
 - [Branding](docs/BRANDING.md) — official logo, generated platform icons, regeneration steps
 - [Architecture Decision Records](docs/adr/README.md)
@@ -405,15 +412,18 @@ bukti kemampuan.
 | **Fase 1** — fondasi dan UX (shell, design system, modul) | Terimplementasi dan tervalidasi di lingkungan uji Flutter/Rust yang tersedia |
 | **Fase 2.1–2.3, 2.6** — core DSP (config, EQ, limiter, metering, pipeline, benchmark) | Terimplementasi dan teruji; belum ada callback audio live |
 | **Fase 2.7** — stabilisasi repositori dan perbaikan CI Android | Akar kegagalan CI Android ditemukan dan diperbaiki (paket usang `tools`); cross-compile, simbol, dan APK diverifikasi ulang secara lokal; validasi perangkat/CI ditunda |
+| **Fase 3** — data lokal dan pertukaran preset | Terimplementasi dan tervalidasi lokal: persistensi SQLite, CRUD preset, setting persisten, impor/ekspor preset, serta backup/restore. Build Windows di CI dan validasi perangkat masih tertunda. |
 | **Android** — dukungan platform dan pengemasan Rust FFI | Terimplementasi; APK debug dapat dibangun secara lokal dan memuat `lib/arm64-v8a/libuam_ffi.so`. Belum divalidasi di perangkat |
 | **Backend audio / pemrosesan system-wide** | Belum diimplementasikan. Cakupan pemrosesan adalah `configuration_only` |
 
-Validasi tercatat pada host referensi: 127 tes Rust, 68 tes Flutter, dan 3
-fixture preset valid / 8 invalid. Benchmark DSP memenuhi target `< 2 %` dari
-satu core (stereo 10-band EQ + limiter pada 48 kHz / 256 frame). Fase 2.7
-memverifikasi ulang skrip build Android (debug + release), pengemasan APK,
-simbol native, serta regresi Windows/Rust/Flutter. Lihat
-[`docs/Roadmap.md`](docs/Roadmap.md) dan laporan fase untuk buktinya.
+Validasi Fase 3 tercatat pada host referensi: format, clippy, dan tes Rust lulus;
+format dan analisis Flutter lulus; seluruh 190 tes Flutter lulus; serta fixture
+preset melaporkan 3 valid / 8 invalid. APK debug Android arm64 dapat dibangun
+secara lokal. `flutter build windows --debug` terblokir lokal karena host ini
+tidak memiliki Developer Mode/izin symlink Windows; job CI Windows menutup gate
+tersebut. Lihat [`docs/PHASE_3_IMPLEMENTATION_REPORT.md`](docs/PHASE_3_IMPLEMENTATION_REPORT.md),
+[`docs/PHASE_3_READINESS.md`](docs/PHASE_3_READINESS.md), dan
+[`docs/Roadmap.md`](docs/Roadmap.md) untuk bukti dan keterbatasan.
 
 ### Struktur repositori
 
@@ -691,6 +701,10 @@ Lihat [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) untuk matriks lengkapnya.
 - [Laporan implementasi Fase 2](docs/PHASE_2_IMPLEMENTATION_REPORT.md)
 - [Desain Fase 2.3](docs/PHASE_2_3_DESIGN.md)
 - [Laporan implementasi Fase 2.3](docs/PHASE_2_3_IMPLEMENTATION_REPORT.md)
+- [Laporan implementasi Fase 3](docs/PHASE_3_IMPLEMENTATION_REPORT.md)
+- [Kesiapan Fase 3](docs/PHASE_3_READINESS.md)
+- [Desain database](docs/DATABASE_DESIGN.md) · [Migrasi](docs/DATABASE_MIGRATIONS.md)
+- [Pertukaran preset](docs/PRESET_EXCHANGE.md) · [Backup dan restore](docs/BACKUP_RESTORE.md)
 - [Setup Android](docs/ANDROID_SETUP.md) · [Laporan build Android](docs/ANDROID_BUILD_REPORT.md)
 - [Branding](docs/BRANDING.md) — logo resmi, ikon platform yang dihasilkan, langkah regenerasi
 - [Architecture Decision Records](docs/adr/README.md)

@@ -253,10 +253,15 @@ UAM/
 │       │   ├── app/
 │       │   │   ├── uam_app.dart
 │       │   │   ├── router/
+│       │   │   ├── services/uam_services.dart    (Phase 3 composition root)
+│       │   │   ├── state/
 │       │   │   ├── theme/
 │       │   │   └── config/
 │       │   │
 │       │   ├── core/
+│       │   │   ├── database/                     (Phase 3: open, migrations, settings keys)
+│       │   │   ├── files/atomic_file_writer.dart
+│       │   │   ├── serialization/canonical_json.dart
 │       │   │   ├── errors/
 │       │   │   ├── logging/
 │       │   │   ├── utils/
@@ -293,13 +298,17 @@ UAM/
 │       │   │   │   └── presentation/
 │       │   │   │
 │       │   │   ├── presets/
-│       │   │   │   ├── domain/
-│       │   │   │   ├── data/
-│       │   │   │   ├── application/
+│       │   │   │   ├── domain/                  (PresetEntry, built-ins)
+│       │   │   │   ├── data/                    (SQLite repo, exchange service)
+│       │   │   │   ├── application/             (PresetLibraryController)
 │       │   │   │   └── presentation/
 │       │   │   │
+│       │   │   ├── backup/                      (Phase 3: backup/restore service)
+│       │   │   │   ├── domain/
+│       │   │   │   └── data/
+│       │   │   │
 │       │   │   ├── audio_lab/
-│       │   │   └── settings/
+│       │   │   └── settings/                    (Phase 3: settings repository + page)
 │       │   │
 │       │   ├── shared/
 │       │   │   ├── widgets/
@@ -314,9 +323,11 @@ UAM/
 │       │       ├── audio/
 │       │       ├── bluetooth/
 │       │       ├── permissions/
+│       │       ├── files/preset_file_gateway.dart  (Phase 3: pick/save boundary)
 │       │       └── share/
 │       │
 │       ├── test/
+│       │   ├── support/                 (test harness, fake file gateway, data stack)
 │       │   ├── unit/
 │       │   ├── widget/
 │       │   └── integration/
@@ -460,8 +471,17 @@ UAM/
 ### `app/flutter/`
 Contains the cross-platform Flutter application. Keep widgets, navigation, state management, and user workflows here.
 
-### `app/flutter/lib/features/`
-Feature-first modules. Each feature owns its presentation and application logic. Avoid a single oversized `screens/` folder.
+### `app/flutter/lib/features/presets/`
+Contains the preset library, its schema-v1 codec, exchange service, local repository, and UI for import/export and duplicate resolution.
+
+### `app/flutter/lib/features/settings/`
+Contains the user settings repository and presentation, including persisted theme, reduced motion, and launch-at-startup.
+
+### `app/flutter/lib/features/backup/`
+Contains the backup package format and service that produce/restore `.uam-backup` files.
+
+### `app/flutter/lib/core/database/`
+Owns the SQLite connection, migrations, setting keys, and database exceptions.
 
 ### `app/flutter/lib/bridge/`
 Contains the public Dart-facing Rust bridge and generated binding code. Generated files should be clearly marked and not edited manually.
@@ -488,6 +508,7 @@ Contains the narrow API exposed to Flutter. Do not expose every internal Rust ty
 Contains platform-specific code that does not fit naturally into a shared Rust implementation, such as Swift, Kotlin, C++, or platform glue.
 
 ### `database/`
+Authoritative preset interchange contract: `schema/preset.schema.json`, valid/invalid fixtures under `fixtures/sample-presets/`, and the notes in `README.md`. The live SQLite schema is applied by Dart migrations under `app/flutter/lib/core/database/migrations/`; SQL files here are documentation, not the runtime migration path (see `docs/DATABASE_MIGRATIONS.md`).
 Contains SQLite migration files, JSON schema definitions, fixtures, and database documentation. The actual user database file must live in the OS-appropriate application data directory, not in the repository.
 
 ### `presets/`

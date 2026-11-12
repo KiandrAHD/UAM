@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../app/state/uam_app_controller.dart';
 import '../../../core/constants/app_constants.dart';
@@ -9,6 +10,7 @@ import '../../../design_system/tokens/uam_breakpoints.dart';
 import '../../../design_system/tokens/uam_radii.dart';
 import '../../../design_system/tokens/uam_spacing.dart';
 import '../../../design_system/tokens/uam_typography.dart';
+import '../../backup/domain/backup_package.dart';
 
 /// Settings categories. Only the categories with designed content are active;
 /// the remainder render an explicit not-designed state.
@@ -18,7 +20,11 @@ enum _SettingsCategory {
   audio('Audio', Icons.graphic_eq_outlined),
   devices('Devices', Icons.headphones_outlined),
   permissions('Permissions', Icons.shield_outlined),
-  presetManagement('Preset Management', Icons.library_music_outlined),
+  presetManagement(
+    'Preset Management',
+    Icons.library_music_outlined,
+    implemented: true,
+  ),
   storage('Storage', Icons.folder_outlined),
   about('About UAM', Icons.info_outline, implemented: true),
   reset('Reset', Icons.restart_alt, implemented: true);
@@ -30,7 +36,8 @@ enum _SettingsCategory {
   final bool implemented;
 }
 
-/// Application preferences, appearance, version data, and reset actions.
+/// Application preferences, appearance, preset backup/restore, version data,
+/// and reset actions. Preferences are persisted in the local SQLite database.
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -53,8 +60,9 @@ class _SettingsPageState extends State<SettingsPage> {
           eyebrow: 'Preferences',
           title: 'Settings',
           description:
-              'Appearance, general behaviour, version data, and reset. Phase 1 '
-              'preferences are held in memory only; nothing is persisted.',
+              'Appearance, general behaviour, local backup and restore, version '
+              'data, and reset. Preferences and presets are persisted in the '
+              'local SQLite database and survive a restart.',
         ),
         const SizedBox(height: UamSpacing.lg),
         LayoutBuilder(
@@ -257,6 +265,9 @@ class _SettingsContent extends StatelessWidget {
       _SettingsCategory.appearance => _AppearanceSection(
         controller: controller,
       ),
+      _SettingsCategory.presetManagement => _BackupSection(
+        controller: controller,
+      ),
       _SettingsCategory.about => _AboutSection(controller: controller),
       _SettingsCategory.reset => _ResetSection(controller: controller),
       _ => _NotDesignedSection(category: category),
@@ -286,8 +297,8 @@ class _GeneralSection extends StatelessWidget {
               _SettingRow(
                 title: 'Launch at startup',
                 description:
-                    'A local preference only. No platform auto-start integration '
-                    'is active in Phase 1.',
+                    'A persisted local preference. No platform auto-start '
+                    'integration is active yet, so this only records intent.',
                 control: Switch(
                   value: controller.launchAtStartup,
                   onChanged: controller.setLaunchAtStartup,
@@ -306,7 +317,7 @@ class _GeneralSection extends StatelessWidget {
                 title: 'Close behaviour',
                 description:
                     'Window close behaviour is platform-managed and not '
-                    'configured in Phase 1.',
+                    'configured yet.',
                 control: _DisabledSelector(label: 'Platform default'),
               ),
             ],
@@ -362,7 +373,8 @@ class _AppearanceSection extends StatelessWidget {
                 title: 'Reduced motion',
                 description:
                     'Reduces navigation and control transitions. The system '
-                    'accessibility preference is always honoured in addition.',
+                    'accessibility preference is always honoured in addition. '
+                    'The choice is persisted.',
                 control: Switch(
                   value: controller.reducedMotion,
                   onChanged: controller.setReducedMotion,
@@ -381,6 +393,216 @@ class _AppearanceSection extends StatelessWidget {
         UamThemePreference.dark => Icons.dark_mode_outlined,
         UamThemePreference.light => Icons.light_mode_outlined,
       };
+}
+
+/// Local backup and restore. No cloud service is involved.
+class _BackupSection extends StatefulWidget {
+  const _BackupSection({required this.controller});
+
+  final UamAppController controller;
+
+  @override
+  State<_BackupSection> createState() => _BackupSectionState();
+}
+
+class _BackupSectionState extends State<_BackupSection> {
+  bool _busy = false;
+  String? _lastBackupAt;
+  String? _lastBackupPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLastBackup();
+  }
+
+  Future<void> _loadLastBackup() async {
+    final (at, path) = await widget.controller.presets.lastBackupInfo();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _lastBackupAt = at;
+      _lastBackupPath = path;
+    });
+  }
+
+  Future<void> _createBackup() async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await widget.controller.presets.backupToChosenFile();
+    final error = widget.controller.presets.error;
+    widget.controller.presets.clearError();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    if (result == null) {
+      if (error != null) {
+        messenger.showSnackBar(SnackBar(content: Text(_describeError(error))));
+      }
+      return;
+    }
+    await _loadLastBackup();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Backup written: ${result.presetCount} presets, '
+          '${_formatBytes(result.bytes)} (${p.basename(result.path)}).',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restore() async {
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final package = await widget.controller.presets.pickAndInspectBackup();
+    final error = widget.controller.presets.error;
+    widget.controller.presets.clearError();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    if (package == null) {
+      if (error != null) {
+        messenger.showSnackBar(SnackBar(content: Text(_describeError(error))));
+      }
+      return;
+    }
+    final confirmed = await _confirmRestore(context, package);
+    if (!(confirmed ?? false) || !mounted) {
+      return;
+    }
+    setState(() => _busy = true);
+    final report = await widget.controller.presets.restoreBackup(package);
+    final restoreError = widget.controller.presets.error;
+    widget.controller.presets.clearError();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    if (report == null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            restoreError == null
+                ? 'The restore did not complete.'
+                : _describeError(restoreError),
+          ),
+        ),
+      );
+      return;
+    }
+    // Persisted appearance may have changed; re-apply it.
+    await widget.controller.loadSettingsOnly();
+    await _loadLastBackup();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Restored ${report.presetsRestored} presets and '
+          '${report.settingsRestored} settings.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.uamColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        UamCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const UamSectionHeader(
+                title: 'Backup and restore',
+                subtitle: 'Local .uam-backup containers',
+              ),
+              const SizedBox(height: UamSpacing.lg),
+              Text(
+                'A backup is a versioned, checksummed container holding your '
+                'presets, favorites, the active preset, and user preferences. '
+                'It is a local file you choose; UAM never uploads it.',
+                style: UamTypography.description.copyWith(
+                  color: colors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: UamSpacing.lg),
+              Wrap(
+                spacing: UamSpacing.md,
+                runSpacing: UamSpacing.md,
+                children: <Widget>[
+                  FilledButton.icon(
+                    key: const Key('settings-create-backup'),
+                    onPressed: _busy ? null : _createBackup,
+                    icon: const Icon(Icons.backup_outlined, size: 17),
+                    label: const Text('Create backup'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('settings-restore-backup'),
+                    onPressed: _busy ? null : _restore,
+                    icon: const Icon(Icons.restore_outlined, size: 17),
+                    label: const Text('Restore backup'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: UamSpacing.lg),
+              Text(
+                _lastBackupAt == null
+                    ? 'No backup has been created from this installation yet.'
+                    : 'Last backup: $_lastBackupAt'
+                          '${_lastBackupPath == null ? '' : ' ($_lastBackupPath)'}',
+                style: UamTypography.micro.copyWith(color: colors.textTertiary),
+              ),
+              if (_busy) ...<Widget>[
+                const SizedBox(height: UamSpacing.lg),
+                const LinearProgressIndicator(minHeight: 3),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Future<bool?> _confirmRestore(BuildContext context, BackupPackage package) {
+  return showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Restore from backup'),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(package.summary),
+            const SizedBox(height: UamSpacing.lg),
+            const Text(
+              'Restoring replaces your current user and imported presets and '
+              'user preferences with the contents of this backup. Built-in '
+              'presets stay. A pre-restore snapshot is written when possible, '
+              'and the change runs in a single transaction.',
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Restore'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _AboutSection extends StatelessWidget {
@@ -412,7 +634,7 @@ class _AboutSection extends StatelessWidget {
                 label: 'APP VERSION',
                 value: AppConstants.appVersion,
               ),
-              const UamKeyValue(label: 'PHASE', value: 'Phase 1 — Foundation'),
+              const UamKeyValue(label: 'PHASE', value: 'Phase 3 — Local data'),
               UamKeyValue(
                 label: 'RUST CORE',
                 value: state.coreVersion == null
@@ -430,13 +652,18 @@ class _AboutSection extends StatelessWidget {
               ),
               const UamKeyValue(label: 'PRESET SCHEMA', value: 'uam-preset v1'),
               const UamKeyValue(
+                label: 'DATABASE SCHEMA',
+                value: 'uam.db v1 (SQLite, WAL)',
+              ),
+              const UamKeyValue(
                 label: 'DATA LOCATION',
-                value: 'In memory (not persisted)',
+                value: 'Application support directory / UAM / uam.db',
               ),
               const SizedBox(height: UamSpacing.md),
               Text(
-                'Phase 1 holds configuration in memory. Preset persistence, '
-                'device adapters, and audio processing arrive in later phases.',
+                'Presets, favorites, the active preset, and user preferences '
+                'are persisted locally. Native audio processing remains a '
+                'configuration-only prototype in this build.',
                 style: UamTypography.micro.copyWith(color: colors.textTertiary),
               ),
             ],
@@ -465,9 +692,9 @@ class _ResetSection extends StatelessWidget {
           ),
           const SizedBox(height: UamSpacing.lg),
           Text(
-            'Resets the in-memory appearance and general preferences for this '
-            'session and restores the default equalizer configuration. No '
-            'persisted data exists, so nothing on disk is removed.',
+            'Resets the persisted appearance and general preferences to their '
+            'defaults and restores the default equalizer configuration. Your '
+            'presets, favorites, and the database itself are not removed.',
             style: UamTypography.description.copyWith(
               color: colors.textSecondary,
             ),
@@ -494,8 +721,8 @@ class _ResetSection extends StatelessWidget {
         title: const Text('Reset preferences'),
         content: const Text(
           'Appearance and general preferences return to their defaults and the '
-          'equalizer resets to a flat ten-band configuration. This cannot be '
-          'undone.',
+          'equalizer resets to a flat ten-band configuration. Presets are kept. '
+          'This cannot be undone.',
         ),
         actions: <Widget>[
           TextButton(
@@ -512,16 +739,17 @@ class _ResetSection extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed ?? false) {
-      controller.equalizer.reset();
-      controller.resetPreferences();
-      if (!context.mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Phase 1 preferences were reset.')),
-      );
+    if (!(confirmed ?? false) || !context.mounted) {
+      return;
     }
+    final messenger = ScaffoldMessenger.of(context);
+    controller.equalizer.reset();
+    await controller.resetPreferences();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Preferences were reset to their defaults.'),
+      ),
+    );
   }
 }
 
@@ -538,7 +766,7 @@ class _NotDesignedSection extends StatelessWidget {
         title: '${category.label} is not designed yet',
         description:
             'The prototype defines the "${category.label}" category in the '
-            'navigation but no detail content. Phase 1 shows this explicit '
+            'navigation but no detail content. UAM shows this explicit '
             'placeholder instead of inventing settings that do not exist.',
       ),
     );
@@ -636,3 +864,16 @@ class _DisabledSelector extends StatelessWidget {
     );
   }
 }
+
+String _describeError(Object error) {
+  if (error is Exception) {
+    final text = error.toString();
+    final colon = text.indexOf(': ');
+    return colon >= 0 ? text.substring(colon + 2) : text;
+  }
+  return error.toString();
+}
+
+String _formatBytes(int bytes) => bytes >= 1024 * 1024
+    ? '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB'
+    : '${(bytes / 1024).toStringAsFixed(1)} KiB';

@@ -31,6 +31,12 @@
 21. `PHASE_2_7_STABILIZATION_REPORT.md` — Android CI root-cause repair, local cross-compilation/APK evidence, Windows/Rust/Flutter regressions, and deferred device validation.
 22. `platform/ANDROID.md` — Android capability and validation notes.
 23. `BRANDING.md` — official UAM logo source, generated platform icons, regeneration, and validation.
+24. `DATABASE_DESIGN.md` — implemented SQLite v1 schema, connection policy, and validation.
+25. `DATABASE_MIGRATIONS.md` — migration/versioning policy and failure behavior.
+26. `PRESET_EXCHANGE.md` — schema-v1 import/export and duplicate-resolution behavior.
+27. `BACKUP_RESTORE.md` — backup container, checksum, and restore workflow.
+28. `PHASE_3_IMPLEMENTATION_REPORT.md` — implementation scope, evidence, usage, and limitations.
+29. `PHASE_3_READINESS.md` — Phase 3 readiness gates, evidence, and remaining platform validation.
 
 ## Core product decisions
 

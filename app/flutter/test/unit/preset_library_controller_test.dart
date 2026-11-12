@@ -3,6 +3,8 @@ import 'package:uam/features/presets/application/preset_library_controller.dart'
 import 'package:uam/shared/models/equalizer_configuration.dart';
 import 'package:uam/shared/models/preset_document.dart';
 
+import '../support/test_data_stack.dart';
+
 const String _validPresetJson = '''
 {
   "format": "uam-preset",
@@ -21,16 +23,44 @@ const String _validPresetJson = '''
 ''';
 
 void main() {
+  late TestDataStack stack;
+  late PresetLibraryController controller;
+
+  setUp(() async {
+    stack = await TestDataStack.create();
+    controller = PresetLibraryController(
+      repository: stack.presets,
+      exchange: stack.exchange,
+      settings: stack.settings,
+      fileGateway: stack.files,
+      backup: stack.backup,
+    );
+    await controller.load();
+  });
+
+  tearDown(() async {
+    controller.dispose();
+    await stack.dispose();
+  });
+
   group('PresetLibraryController', () {
-    test('ships the three repository reference presets', () {
-      final controller = PresetLibraryController();
+    test('loads the three seeded built-in presets', () {
       expect(controller.entries, hasLength(3));
-      expect(controller.activeId, controller.entries.first.id);
-      expect(controller.categories, containsAll(<String>['balanced', 'bass']));
+      expect(controller.activeId, isNotNull);
+      expect(
+        controller.categories,
+        containsAll(<String>['balanced', 'bass', 'neutral']),
+      );
+      expect(controller.entries.every((entry) => entry.isBuiltIn), isTrue);
+    });
+
+    test('reloading does not duplicate built-ins', () async {
+      await controller.load();
+      await controller.load();
+      expect(controller.entries, hasLength(3));
     });
 
     test('filters by section, query, and category', () {
-      final controller = PresetLibraryController();
       expect(
         controller.filtered(query: 'bass').map((entry) => entry.name),
         contains('Shelf Bass Boost'),
@@ -46,43 +76,47 @@ void main() {
       );
     });
 
-    test('favorites survive filtering', () {
-      final controller = PresetLibraryController();
+    test('favorites persist to the repository and survive a reload', () async {
       final entry = controller.entries.first;
-      controller.toggleFavorite(entry.id);
+      final toggled = await controller.toggleFavorite(entry.id);
+      expect(toggled!.isFavorite, isTrue);
       expect(
         controller.filtered(section: PresetLibrarySection.favorites).single.id,
         entry.id,
       );
+      await controller.load();
+      expect(
+        controller.entries.firstWhere((item) => item.id == entry.id).isFavorite,
+        isTrue,
+      );
     });
 
-    test('imports validated JSON and can activate it', () {
-      final controller = PresetLibraryController();
-      final imported = controller.importJson(_validPresetJson);
+    test('imports validated JSON, persists it, and activates it', () async {
+      final imported = await controller.importJson(_validPresetJson);
       expect(imported, isNotNull);
       expect(controller.entries, hasLength(4));
       expect(controller.activeId, imported!.id);
       expect(imported.isBuiltIn, isFalse);
+      await controller.load();
+      expect(controller.entries, hasLength(4));
     });
 
-    test('rejects invalid JSON without mutating the library', () {
-      final controller = PresetLibraryController();
-      expect(controller.importJson('{"format":"nope"}'), isNull);
+    test('rejects invalid JSON without mutating the library', () async {
+      expect(await controller.importJson('{"format":"nope"}'), isNull);
+      expect(controller.entries, hasLength(3));
+      expect(controller.error, isNotNull);
+    });
+
+    test('built-in presets cannot be deleted, user presets can', () async {
+      final builtIn = controller.entries.firstWhere((e) => e.isBuiltIn);
+      expect(await controller.removePreset(builtIn.id), isFalse);
+      final imported = (await controller.importJson(_validPresetJson))!;
+      expect(await controller.removePreset(imported.id), isTrue);
       expect(controller.entries, hasLength(3));
     });
 
-    test('built-in presets cannot be deleted, imports can', () {
-      final controller = PresetLibraryController();
-      final builtIn = controller.entries.first;
-      expect(controller.removePreset(builtIn.id), isFalse);
-      final imported = controller.importJson(_validPresetJson)!;
-      expect(controller.removePreset(imported.id), isTrue);
-      expect(controller.entries, hasLength(3));
-    });
-
-    test('createFromEqualizer stores the current configuration', () {
-      final controller = PresetLibraryController();
-      final created = controller.createFromEqualizer(
+    test('createFromEqualizer stores the current configuration', () async {
+      final created = await controller.createFromEqualizer(
         name: 'My Profile',
         description: 'Saved from the editor.',
         configuration: EqualizerConfiguration.defaultGraphic().copyWith(
@@ -94,20 +128,38 @@ void main() {
       expect(created.document.bandCount, 10);
       expect(created.document.audio.preampDb, -2);
       expect(created.category, 'Uncategorised');
+      expect(created.isBuiltIn, isFalse);
     });
 
-    test('createFromEqualizer rejects a name the schema rejects', () {
-      final controller = PresetLibraryController();
-      final created = controller.createFromEqualizer(
+    test('createFromEqualizer rejects a name the schema rejects', () async {
+      final created = await controller.createFromEqualizer(
         name: '',
         configuration: EqualizerConfiguration.defaultGraphic(),
       );
       expect(created, isNull);
+      expect(controller.error, isNotNull);
     });
 
-    test('activating an unknown preset returns null', () {
-      final controller = PresetLibraryController();
-      expect(controller.activate('missing'), isNull);
+    test('activating an unknown preset returns false', () async {
+      expect(await controller.activate('missing'), isFalse);
+    });
+
+    test('activating a known preset persists the selection', () async {
+      expect(await controller.activate('builtin-shelf-bass-boost'), isTrue);
+      expect(controller.activeId, 'builtin-shelf-bass-boost');
+      await controller.load();
+      expect(controller.activeId, 'builtin-shelf-bass-boost');
+    });
+
+    test('a dangling active preset recovers to a valid one', () async {
+      final created = (await controller.importJson(_validPresetJson))!;
+      await stack.presets.delete(created.id);
+      await controller.load();
+      expect(controller.activeId, isNotNull);
+      expect(
+        controller.entries.any((entry) => entry.id == controller.activeId),
+        isTrue,
+      );
     });
 
     test('parsed preset document exposes a category from tags', () {

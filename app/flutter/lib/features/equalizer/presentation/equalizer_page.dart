@@ -610,9 +610,11 @@ Future<void> _showSaveDialog(
 ) async {
   final nameController = TextEditingController();
   final descriptionController = TextEditingController();
+  final messenger = ScaffoldMessenger.of(context);
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
+      var saving = false;
       return StatefulBuilder(
         builder: (dialogContext, setState) {
           final name = nameController.text.trim();
@@ -649,21 +651,47 @@ Future<void> _showSaveDialog(
             ),
             actions: <Widget>[
               TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
+                onPressed: saving
+                    ? null
+                    : () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed: valid
-                    ? () {
-                        final entry = controller.presets.createFromEqualizer(
-                          name: name,
-                          description: descriptionController.text,
-                          configuration: controller.equalizer.configuration,
-                        );
-                        if (entry != null) {
-                          controller.activatePreset(entry.id);
+                onPressed: (valid && !saving)
+                    ? () async {
+                        setState(() => saving = true);
+                        final entry = await controller.presets
+                            .createFromEqualizer(
+                              name: name,
+                              description: descriptionController.text,
+                              configuration: controller.equalizer.configuration,
+                              activate: false,
+                            );
+                        if (entry == null) {
+                          if (dialogContext.mounted) {
+                            setState(() => saving = false);
+                          }
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'The preset was not saved. Check the name and '
+                                'the equalizer configuration.',
+                              ),
+                            ),
+                          );
+                          return;
                         }
-                        Navigator.of(dialogContext).pop();
+                        await controller.activatePreset(entry.id);
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '"${entry.name}" was saved to the local library.',
+                            ),
+                          ),
+                        );
                       }
                     : null,
                 child: const Text('Save preset'),
