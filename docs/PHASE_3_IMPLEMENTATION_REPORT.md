@@ -86,6 +86,7 @@ Dari `crates/`:
 cargo fmt --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
+cargo bench --workspace --locked
 ```
 
 Dari `app/flutter/`:
@@ -102,7 +103,7 @@ Hasil tercatat:
 
 - Validasi aset merek: lulus.
 - Validasi fixture preset: lulus, 3 valid dan 8 invalid.
-- Rust format, clippy, dan test: lulus.
+- Rust format, clippy, test, dan benchmark workspace: lulus.
 - Flutter format: 105 berkas, 0 perubahan.
 - Flutter analyze: `No issues found!`.
 - Flutter test: `190 All tests passed!`.

@@ -17,7 +17,7 @@
 | Backup/restore tervalidasi dan transaksional | Lulus | Batas 8 MiB, SHA-256, snapshot, konfirmasi, dan transaksi; 24 test backup. |
 | Regresi Flutter | Lulus | `flutter test --concurrency=1`: 190 test lulus. |
 | Static analysis dan format Flutter | Lulus | `dart format --output=none --set-exit-if-changed .`: 0 perubahan; `flutter analyze`: tanpa isu. |
-| Regresi Rust | Lulus | `cargo fmt --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, dan `cargo test --workspace --locked` lulus. |
+| Regresi Rust | Lulus | `cargo fmt --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo test --workspace --locked`, dan `cargo bench --workspace --locked` lulus. |
 | Fixture preset dan aset merek | Lulus | `validate_presets.py`: 3 valid/8 invalid; `validate_brand_assets.py`: lulus. |
 | Build Android debug arm64 | Lulus | APK dibuat di `build/app/outputs/flutter-apk/app-debug.apk`. |
 | Build Windows debug lokal | Tertunda karena host | Developer Mode/izin symlink tidak tersedia. CI Windows ditambahkan, tetapi belum ada hasil workflow pada saat dokumen ini ditulis. |
