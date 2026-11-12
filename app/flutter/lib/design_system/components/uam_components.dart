@@ -239,9 +239,11 @@ class UamNotice extends StatelessWidget {
   };
 }
 
-/// Figma-aligned UAM mark without image assets.
+/// Official UAM artwork used everywhere the app presents its identity.
 class UamBrandMark extends StatelessWidget {
   const UamBrandMark({this.size = 38, super.key});
+
+  static const String assetPath = 'assets/branding/uam_logo.png';
 
   final double size;
 
@@ -250,37 +252,9 @@ class UamBrandMark extends StatelessWidget {
     return Semantics(
       label: 'Universe Audio Management',
       image: true,
-      child: Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[
-              UamColors.brandGradientStart,
-              UamColors.brandGradientEnd,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(size * 0.28),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: UamColors.accent.withValues(alpha: 0.20),
-              blurRadius: 26,
-            ),
-          ],
-        ),
-        child: Text(
-          'U',
-          style: TextStyle(
-            color: Colors.white,
-            fontFamily: UamTypography.fontFamily,
-            fontWeight: FontWeight.w800,
-            fontSize: size * 0.56,
-            height: 1,
-          ),
-        ),
+      child: SizedBox.square(
+        dimension: size,
+        child: Image.asset(assetPath, fit: BoxFit.contain),
       ),
     );
   }

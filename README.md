@@ -71,7 +71,7 @@ symbols, and the Windows/Rust/Flutter regressions. See
 
 | Path | Purpose |
 |---|---|
-| `app/flutter/` | Flutter application: design system, bridge, features, tests (`android/` and `windows/` platform folders present) |
+| `app/flutter/` | Flutter application: design system, bridge, features, tests, and the native platform folders (`android/`, `windows/`, `linux/`, `macos/`, `ios/`); official brand assets in `assets/branding/` |
 | `crates/` | Rust workspace: `uam_domain`, `uam_dsp`, `uam_preset`, `uam_ffi` |
 | `database/` | Preset JSON Schema (`schema/`), fixtures (`fixtures/sample-presets/`), migration notes |
 | `presets/` | User-facing example presets (`examples/`) and schema pointer (`schema/`) |
@@ -345,6 +345,7 @@ See [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) for the full matrix.
 - [Phase 2.3 design](docs/PHASE_2_3_DESIGN.md)
 - [Phase 2.3 implementation report](docs/PHASE_2_3_IMPLEMENTATION_REPORT.md)
 - [Android setup](docs/ANDROID_SETUP.md) · [Android build report](docs/ANDROID_BUILD_REPORT.md)
+- [Branding](docs/BRANDING.md) — official logo, generated platform icons, regeneration steps
 - [Architecture Decision Records](docs/adr/README.md)
 - [Platform notes](docs/platform/) · [Testing](docs/testing/) · [Benchmarks](docs/testing/BENCHMARKS.md)
 - [Privacy](docs/PRIVACY.md) · [Release](docs/RELEASE.md)
@@ -418,7 +419,7 @@ simbol native, serta regresi Windows/Rust/Flutter. Lihat
 
 | Path | Fungsi |
 |---|---|
-| `app/flutter/` | Aplikasi Flutter: design system, bridge, fitur, tes (folder platform `android/` dan `windows/` tersedia) |
+| `app/flutter/` | Aplikasi Flutter: design system, bridge, fitur, tes, dan folder platform native (`android/`, `windows/`, `linux/`, `macos/`, `ios/`); aset merek resmi di `assets/branding/` |
 | `crates/` | Workspace Rust: `uam_domain`, `uam_dsp`, `uam_preset`, `uam_ffi` |
 | `database/` | JSON Schema preset (`schema/`), fixtures (`fixtures/sample-presets/`), catatan migrasi |
 | `presets/` | Contoh preset untuk pengguna (`examples/`) dan penunjuk schema (`schema/`) |
@@ -691,6 +692,7 @@ Lihat [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) untuk matriks lengkapnya.
 - [Desain Fase 2.3](docs/PHASE_2_3_DESIGN.md)
 - [Laporan implementasi Fase 2.3](docs/PHASE_2_3_IMPLEMENTATION_REPORT.md)
 - [Setup Android](docs/ANDROID_SETUP.md) · [Laporan build Android](docs/ANDROID_BUILD_REPORT.md)
+- [Branding](docs/BRANDING.md) — logo resmi, ikon platform yang dihasilkan, langkah regenerasi
 - [Architecture Decision Records](docs/adr/README.md)
 - [Catatan platform](docs/platform/) · [Pengujian](docs/testing/) · [Benchmark](docs/testing/BENCHMARKS.md)
 - [Privasi](docs/PRIVACY.md) · [Rilis](docs/RELEASE.md)

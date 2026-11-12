@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=UAM
+GenericName=Universe Audio Management
+Comment=Universe Audio Management
+Exec=uam
+Icon=com.kiandrahd.uam
+Terminal=false
+Categories=AudioVideo;Audio;Utility;
+StartupWMClass=com.kiandrahd.uam

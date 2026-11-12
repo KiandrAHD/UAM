@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "dev.uam" "\0"
-            VALUE "FileDescription", "uam" "\0"
+            VALUE "FileDescription", "Universe Audio Management" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "uam" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 dev.uam. All rights reserved." "\0"
             VALUE "OriginalFilename", "uam.exe" "\0"
-            VALUE "ProductName", "uam" "\0"
+            VALUE "ProductName", "Universe Audio Management" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
