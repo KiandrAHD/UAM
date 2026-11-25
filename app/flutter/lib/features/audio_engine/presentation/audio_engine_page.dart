@@ -13,13 +13,14 @@ import '../../../design_system/tokens/uam_spacing.dart';
 import '../../../design_system/tokens/uam_typography.dart';
 import '../../../platform/audio/audio_processing_scope.dart';
 import '../../../shared/models/engine_runtime_state.dart';
-import '../../settings/presentation/rust_core_proof_page.dart';
+import '../../diagnostics/presentation/diagnostics_page.dart';
 import '../domain/diagnostic_entry.dart';
 
 /// Engine readiness, processing scope, endpoint, backend, and diagnostics.
 ///
-/// Every value on this page is read from the runtime bridge or explicitly
-/// reported as not available. It never claims verified processing.
+/// Every value on this page is read from the live native engine or explicitly
+/// reported as not available. It never claims verified processing without
+/// observed render callbacks.
 class AudioEnginePage extends StatelessWidget {
   const AudioEnginePage({super.key});
 
@@ -28,6 +29,8 @@ class AudioEnginePage extends StatelessWidget {
     final controller = UamAppScope.of(context);
     final state = controller.engine.state;
     final verified = state.processingVerified;
+    final engine = controller.engine;
+    final scope = state.processingScope;
     return ListView(
       key: const Key('page-audio-engine'),
       padding: EdgeInsets.zero,
@@ -37,41 +40,45 @@ class AudioEnginePage extends StatelessWidget {
           eyebrow: 'Runtime',
           title: 'Audio engine',
           description:
-              'Engine readiness, processing scope, and diagnostics from the '
-              'control path. Configured values and verified processing are '
-              'separate fields.',
+              'Live backend state, stream controls, and diagnostics read from '
+              'the native WASAPI engine. Configured values and verified '
+              'processing are separate fields.',
           actions: <Widget>[
             UamIconButton(
               icon: Icons.refresh,
               label: 'Reload engine status',
-              onPressed: controller.engine.isLoading
+              onPressed: engine.isLoading
                   ? null
                   : () {
-                      unawaited(controller.engine.load());
+                      unawaited(engine.load());
                     },
             ),
             OutlinedButton.icon(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) =>
-                      RustCoreProofPage(engineController: controller.engine),
+                  builder: (_) => const DiagnosticsPage(),
                 ),
               ),
-              icon: const Icon(Icons.memory, size: 17),
-              label: const Text('Phase 0 core proof'),
+              icon: const Icon(Icons.insights_outlined, size: 17),
+              label: const Text('Diagnostics'),
             ),
           ],
         ),
         const SizedBox(height: UamSpacing.lg),
-        const UamNotice(
-          tone: UamStatusTone.info,
-          title: 'Configuration only',
+        UamNotice(
+          tone: scope == AudioProcessingScope.appOwnedStream
+              ? UamStatusTone.success
+              : UamStatusTone.info,
+          title: scope == AudioProcessingScope.appOwnedStream
+              ? 'App-owned stream attached'
+              : 'No stream attached',
           message:
-              'UAM is not attached to an audio output in Phase 1. The core can '
-              'report readiness and accept a configuration, but no live stream '
-              'is verified. Verified output is shown only when the core and a '
-              'backend report an active stream.',
+              'UAM renders and processes the audio it generates itself on the '
+              'selected Windows output endpoint. It does not capture or modify '
+              'audio produced by other applications.',
         ),
+        const SizedBox(height: UamSpacing.xl),
+        _EngineControls(controller: controller),
         const SizedBox(height: UamSpacing.xl),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -111,6 +118,82 @@ class AudioEnginePage extends StatelessWidget {
   }
 }
 
+/// Start/stop, bypass, and test-tone controls bound to the native engine.
+class _EngineControls extends StatelessWidget {
+  const _EngineControls({required this.controller});
+
+  final UamAppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final engine = controller.engine;
+    final state = engine.state;
+    final running = state.status == EngineProcessingStatus.processing;
+    final bypassed = state.bypassed;
+    return UamCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const UamSectionHeader(
+            title: 'Stream controls',
+            subtitle: 'Direct native engine commands',
+          ),
+          const SizedBox(height: UamSpacing.lg),
+          Wrap(
+            spacing: UamSpacing.md,
+            runSpacing: UamSpacing.md,
+            children: <Widget>[
+              FilledButton.icon(
+                key: const Key('engine-start'),
+                onPressed: running
+                    ? null
+                    : () {
+                        unawaited(engine.startStream());
+                      },
+                icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                label: const Text('Start stream'),
+              ),
+              OutlinedButton.icon(
+                key: const Key('engine-stop'),
+                onPressed: running
+                    ? null
+                    : () {
+                        unawaited(engine.stopStream());
+                      },
+                icon: const Icon(Icons.stop_rounded, size: 18),
+                label: const Text('Stop stream'),
+              ),
+              OutlinedButton.icon(
+                key: const Key('engine-bypass'),
+                onPressed: () {
+                  unawaited(engine.setBypass(!bypassed));
+                },
+                icon: Icon(
+                  bypassed ? Icons.volume_up : Icons.volume_off,
+                  size: 18,
+                ),
+                label: Text(bypassed ? 'Disable bypass' : 'Enable bypass'),
+              ),
+              OutlinedButton.icon(
+                key: const Key('engine-test-tone'),
+                onPressed: () {
+                  unawaited(
+                    engine.setTestTone(enabled: !state.testToneEnabled),
+                  );
+                },
+                icon: const Icon(Icons.graphic_eq, size: 18),
+                label: Text(
+                  state.testToneEnabled ? 'Stop test tone' : 'Play test tone',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EngineStatusCard extends StatelessWidget {
   const _EngineStatusCard({
     required this.controller,
@@ -132,7 +215,7 @@ class _EngineStatusCard extends StatelessWidget {
         children: <Widget>[
           UamSectionHeader(
             title: 'Engine status',
-            subtitle: 'Read-only truth from the Rust core',
+            subtitle: 'Live state from the Rust core',
             trailing: UamStatus(
               label: loading ? 'Checking' : state.status.label,
               tone: loading
@@ -169,6 +252,13 @@ class _EngineStatusCard extends StatelessWidget {
             value: state.bridgeAbiVersion == null
                 ? 'Not reported'
                 : '${state.bridgeAbiVersion}',
+          ),
+          UamKeyValue(
+            label: 'BACKEND',
+            value: state.backendName ?? 'Not connected',
+            valueColor: state.backendName == null
+                ? colors.textTertiary
+                : colors.textPrimary,
           ),
           UamKeyValue(
             label: 'CONFIG ACCEPTED',
@@ -214,7 +304,9 @@ class _SignalPathCard extends StatelessWidget {
       _SignalNode(
         label: 'Audio backend',
         detail: state.backendName ?? 'Not connected',
-        tone: UamStatusTone.muted,
+        tone: state.backendName == null
+            ? UamStatusTone.muted
+            : UamStatusTone.success,
         icon: Icons.settings_input_component,
       ),
       _SignalNode(
@@ -346,23 +438,35 @@ class _TechnicalGrid extends StatelessWidget {
         UamMetricTile(
           label: 'Selected endpoint',
           value: state.selectedEndpoint ?? 'Not selected',
-          caption: 'No endpoint is chosen in Phase 1',
+          caption: state.selectedEndpoint == null
+              ? 'Choose an output device'
+              : 'Endpoint reported by the core',
           icon: Icons.radio_button_checked,
-          tone: UamStatusTone.muted,
+          tone: state.selectedEndpoint == null
+              ? UamStatusTone.muted
+              : UamStatusTone.success,
         ),
         UamMetricTile(
           label: 'Active endpoint',
           value: state.activeEndpoint ?? 'None',
-          caption: 'Requires a live backend',
+          caption: state.activeEndpoint == null
+              ? 'No live stream'
+              : 'Stream is rendering here',
           icon: Icons.settings_input_composite,
-          tone: UamStatusTone.muted,
+          tone: state.activeEndpoint == null
+              ? UamStatusTone.muted
+              : UamStatusTone.success,
         ),
         UamMetricTile(
           label: 'Audio backend',
           value: state.backendName ?? 'Not connected',
-          caption: 'Platform backend not attached',
+          caption: state.backendName == null
+              ? 'Platform backend not attached'
+              : 'Native backend in use',
           icon: Icons.cable_outlined,
-          tone: UamStatusTone.muted,
+          tone: state.backendName == null
+              ? UamStatusTone.muted
+              : UamStatusTone.success,
         ),
         UamMetricTile(
           label: 'Sample rate',
@@ -371,16 +475,22 @@ class _TechnicalGrid extends StatelessWidget {
               : '${state.sampleRateHz} Hz',
           caption: state.bitDepth == null ? null : '${state.bitDepth}-bit',
           icon: Icons.graphic_eq,
-          tone: UamStatusTone.muted,
+          tone: state.sampleRateHz == null
+              ? UamStatusTone.muted
+              : UamStatusTone.info,
         ),
         UamMetricTile(
           label: 'Latency',
           value: state.latencyMs == null
               ? 'Not measured'
               : '${state.latencyMs!.toStringAsFixed(1)} ms',
-          caption: 'No live buffer to measure',
+          caption: state.latencyMs == null
+              ? 'No live buffer to measure'
+              : 'Reported by the audio engine',
           icon: Icons.timer_outlined,
-          tone: UamStatusTone.muted,
+          tone: state.latencyMs == null
+              ? UamStatusTone.muted
+              : UamStatusTone.info,
         ),
       ],
     );
@@ -518,8 +628,6 @@ Future<void> _copyReport(
     ..writeln('UAM engine diagnostic report')
     ..writeln('Status: ${state.status.label}')
     ..writeln('Core reachable: ${state.coreReachable}')
-    ..writeln('Core version: ${state.coreVersion ?? 'not reported'}')
-    ..writeln('Bridge ABI: ${state.bridgeAbiVersion ?? 'not reported'}')
     ..writeln('Processing scope: ${state.processingScope.label}')
     ..writeln('Processing verified: ${state.processingVerified}')
     ..writeln('Configuration accepted: ${state.configurationAccepted}')

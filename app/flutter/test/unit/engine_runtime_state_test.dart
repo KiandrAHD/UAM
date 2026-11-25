@@ -46,7 +46,7 @@ void main() {
         processingScope: AudioProcessingScope.selectedStream,
       );
       expect(verified.processingVerified, isTrue);
-      expect(verified.summary, 'Audio processing is verified.');
+      expect(verified.summary, 'Audio processing is verified on the selected endpoint.');
       expect(verified.isConfigured, isFalse);
     });
   });

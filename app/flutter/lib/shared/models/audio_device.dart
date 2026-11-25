@@ -18,6 +18,9 @@ enum DeviceTransport {
   usb('usb', 'USB'),
   builtIn('built_in', 'Built-in'),
   analog('analog', 'Analog'),
+  hdmi('hdmi', 'HDMI'),
+  network('network', 'Network'),
+  virtual('virtual', 'Virtual'),
   unknown('unknown', 'Unknown');
 
   const DeviceTransport(this.wireName, this.label);
@@ -62,6 +65,8 @@ final class AudioDevice {
     required this.type,
     required this.transport,
     required this.connectionState,
+    this.isDefault = false,
+    this.formatSummary,
     this.platformId,
     this.battery,
     this.codec,
@@ -79,6 +84,13 @@ final class AudioDevice {
   final AudioDeviceType type;
   final DeviceTransport transport;
   final DeviceConnectionState connectionState;
+
+  /// Whether Windows currently marks this endpoint as the default render
+  /// device.
+  final bool isDefault;
+
+  /// Mix-format summary reported by the backend, when available.
+  final String? formatSummary;
 
   /// Optional platform identifier for adapter correlation.
   final String? platformId;

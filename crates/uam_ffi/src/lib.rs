@@ -2,15 +2,18 @@
 #![deny(unsafe_code)]
 //! Narrow C ABI facade for the Flutter application.
 //!
-//! Phase 0 exposes two control-path functions:
+//! Control-path functions:
 //!
 //! - `uam_get_engine_info` returns a UTF-8 JSON object describing the compiled
 //!   core.
+//! - `uam_audio_engine_*` create, drive, and destroy a real-time audio engine
+//!   addressed by an opaque `u64` handle. Each call returns a JSON envelope
+//!   (`{ok, error, data}`).
 //! - `uam_string_free` releases strings allocated by this library.
 //!
-//! Real-time audio buffers are intentionally not exposed. The Flutter side
-//! must never shuttle individual frames through Dart FFI; a future audio
-//! backend will own the callback inside the native layer.
+//! Real-time audio buffers are intentionally not exposed. The Flutter side must
+//! never shuttle individual frames through Dart FFI; the audio callback lives
+//! entirely inside the native layer.
 //!
 //! The FFI module is the only place where `unsafe` is permitted. It is limited
 //! to pointer ownership transfer and freeing. Every `unsafe` block is preceded
@@ -20,6 +23,7 @@ use core::ffi::c_char;
 use std::ffi::CString;
 
 pub mod api;
+pub mod engine;
 pub mod error;
 
 pub use api::{EngineInfo, SUPPORTED_PROTOTYPE_FUNCTIONALITY};

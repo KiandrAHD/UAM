@@ -28,13 +28,14 @@ const EngineInfo _engineInfo = EngineInfo(
 );
 
 void main() {
-  testWidgets('renders Rust core information on success', (tester) async {
+  testWidgets('renders live engine metadata and stream state', (tester) async {
     final services = await createWidgetTestServices(tester);
     await tester.pumpWidget(
       UamApp(
         engineInfoGateway: const _FakeGateway(
           Result<EngineInfo>.success(_engineInfo),
         ),
+        audioEngineGateway: FakeAudioEngineGateway(),
         services: services,
       ),
     );
@@ -42,12 +43,12 @@ void main() {
 
     expect(find.text('Audio workspace'), findsOneWidget);
     expect(find.text('Ready, not processing'), findsOneWidget);
-    expect(find.text('Configuration only'), findsOneWidget);
+    expect(find.text('Configuration only'), findsWidgets);
     expect(find.text('Rust core'), findsOneWidget);
     expect(find.text('Not verified'), findsWidgets);
   });
 
-  testWidgets('renders a safe failure state when the bridge is missing', (
+  testWidgets('renders a safe state when the native audio engine is missing', (
     tester,
   ) async {
     final services = await createWidgetTestServices(tester);
@@ -61,14 +62,14 @@ void main() {
             ),
           ),
         ),
+        audioEngineGateway: FakeAudioEngineGateway(available: false),
         services: services,
       ),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Audio workspace'), findsOneWidget);
-    expect(find.text('No device selected'), findsWidgets);
     expect(find.text('Not processing'), findsOneWidget);
-    expect(find.text('Error'), findsWidgets);
+    expect(find.text('Not verified'), findsWidgets);
   });
 }

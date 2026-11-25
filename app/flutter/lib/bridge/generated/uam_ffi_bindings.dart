@@ -49,6 +49,10 @@ final class UamFfiBindings {
           .lookupFunction<_EngineCreateNative, _EngineCreateDart>(
             'uam_audio_engine_create',
           ),
+      _engineDestroy = library
+          .lookupFunction<_EngineHandleNative, _EngineHandleDart>(
+            'uam_audio_engine_destroy',
+          ),
       _engineStatus = library
           .lookupFunction<_EngineHandleNative, _EngineHandleDart>(
             'uam_audio_engine_status',
@@ -98,6 +102,7 @@ final class UamFfiBindings {
   final _GetEngineInfoDart _getEngineInfo;
   final _StringFreeDart _stringFree;
   final _EngineCreateDart _engineCreate;
+  final _EngineHandleDart _engineDestroy;
   final _EngineHandleDart _engineStatus;
   final _EngineHandleDart _engineEnumerate;
   final _EngineHandleDart _engineDefaultDevice;
@@ -143,6 +148,9 @@ final class UamFfiBindings {
   /// Create an engine and return its handle envelope.
   String engineCreate() => _envelope(_engineCreate());
 
+  /// Destroy an engine and release its native stream resources.
+  String engineDestroy(int handle) => _envelope(_engineDestroy(handle));
+
   /// Read a complete status snapshot envelope.
   String engineStatus(int handle) => _envelope(_engineStatus(handle));
 
@@ -187,9 +195,7 @@ final class UamFfiBindings {
       (arena) => _envelope(
         _engineSetTestTone(
           handle,
-          toneJson == null
-              ? nullptr
-              : toneJson.toNativeUtf8(allocator: arena),
+          toneJson == null ? nullptr : toneJson.toNativeUtf8(allocator: arena),
         ),
       ),
     );

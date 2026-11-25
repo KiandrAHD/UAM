@@ -19,6 +19,7 @@ late TestDataStack _stack;
 UamAppController _controller() => UamAppController(
   engine: EngineController(
     const FakeEngineGateway(Result<EngineInfo>.success(testEngineInfo)),
+    FakeAudioEngineGateway(),
   ),
   devices: DeviceController(),
   equalizer: EqualizerController(),

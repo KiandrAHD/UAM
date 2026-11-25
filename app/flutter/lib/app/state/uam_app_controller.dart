@@ -6,9 +6,11 @@ import '../../core/database/app_setting_keys.dart';
 import '../../features/audio_engine/application/engine_controller.dart';
 import '../../features/audio_engine/domain/diagnostic_entry.dart';
 import '../../features/device_manager/application/device_controller.dart';
+import '../../features/device_manager/data/device_repository.dart';
 import '../../features/equalizer/application/equalizer_controller.dart';
 import '../../features/presets/application/preset_library_controller.dart';
 import '../../features/settings/data/settings_repository.dart';
+import '../../platform/audio/audio_engine_gateway.dart';
 import '../../shared/models/capability.dart';
 import '../../shared/models/equalizer_configuration.dart';
 import '../services/uam_services.dart';
@@ -62,6 +64,7 @@ final class UamAppController extends ChangeNotifier {
     engine.addListener(_relay);
     devices.addListener(_relay);
     equalizer.addListener(_relay);
+    equalizer.addListener(_onEqualizerChanged);
     presets.addListener(_relay);
   }
 
@@ -69,13 +72,16 @@ final class UamAppController extends ChangeNotifier {
   factory UamAppController.fromServices({
     required EngineController engine,
     required UamServices services,
+    required AudioEngineGateway audioEngine,
     UamThemePreference? initialThemePreference,
     bool? initialReducedMotion,
     bool? initialLaunchAtStartup,
   }) {
     return UamAppController(
       engine: engine,
-      devices: DeviceController(),
+      devices: DeviceController(
+        repository: EngineDeviceRepository(audioEngine, services.settings),
+      ),
       equalizer: EqualizerController(),
       presets: PresetLibraryController(
         repository: services.presets,
@@ -119,6 +125,8 @@ final class UamAppController extends ChangeNotifier {
     await presets.load();
     await refreshActivePresetConfiguration();
     await engine.load();
+    await engine.applyEqualizer(equalizer.configuration);
+    await devices.refresh();
     _initialized = true;
     notifyListeners();
   }
@@ -272,6 +280,17 @@ final class UamAppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Push the desired equalizer configuration to the live DSP pipeline.
+  ///
+  /// Debounced in [EngineController] so dragging a slider does not flood the
+  /// native control path.
+  void _onEqualizerChanged() {
+    if (_disposed) {
+      return;
+    }
+    engine.scheduleEqualizer(equalizer.configuration);
+  }
+
   @override
   void dispose() {
     _disposed = true;
@@ -283,6 +302,7 @@ final class UamAppController extends ChangeNotifier {
       ..dispose();
     equalizer
       ..removeListener(_relay)
+      ..removeListener(_onEqualizerChanged)
       ..dispose();
     presets
       ..removeListener(_relay)

@@ -7,6 +7,7 @@ import 'bridge/rust_api.dart';
 import 'core/database/app_setting_keys.dart';
 import 'core/database/database_exception.dart';
 import 'core/logging/app_logger.dart';
+import 'platform/audio/ffi_audio_engine_gateway.dart';
 
 /// Initializes bindings, opens the local SQLite database, loads the persisted
 /// appearance, and starts the UAM application shell.
@@ -59,6 +60,7 @@ Future<void> bootstrap() async {
   runApp(
     UamApp(
       engineInfoGateway: RustApi(),
+      audioEngineGateway: FfiAudioEngineGateway(),
       services: services,
       initialThemePreference: theme,
       initialReducedMotion: reducedMotion,

@@ -8,16 +8,24 @@ use serde::Serialize;
 
 use crate::error::FfiError;
 
-/// Capabilities implemented by the Phase 0 workspace and verified by tests.
+/// Capabilities implemented by the workspace and verified by tests.
 pub const SUPPORTED_PROTOTYPE_FUNCTIONALITY: &[&str] = &[
     "bridge.engine_info",
     "dsp.eq.peaking",
     "dsp.eq.low_shelf",
     "dsp.eq.high_shelf",
     "dsp.preamp",
+    "dsp.limiter",
     "dsp.interleaved.f64.mono_stereo",
     "preset.uam-preset.schema_v1.validate",
     "preset.uam-preset.schema_v1.import_export",
+    "audio.engine.lifecycle",
+    "audio.dsp.host.realtime",
+    "audio.sample_format.conversion",
+    "audio.test_tone",
+    "audio.device.enumerate",
+    #[cfg(windows)]
+    "audio.wasapi.shared_render",
 ];
 
 /// Structured engine information returned to Flutter.

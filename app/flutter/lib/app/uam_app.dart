@@ -4,6 +4,8 @@ import '../bridge/rust_api.dart';
 import '../core/constants/app_constants.dart';
 import '../design_system/theme/uam_theme.dart';
 import '../features/audio_engine/application/engine_controller.dart';
+import '../platform/audio/audio_engine_gateway.dart';
+import '../platform/audio/ffi_audio_engine_gateway.dart';
 import 'router/app_router.dart';
 import 'router/app_routes.dart';
 import 'services/uam_services.dart';
@@ -11,17 +13,19 @@ import 'state/uam_app_controller.dart';
 
 /// Root application.
 ///
-/// The Rust [EngineInfoGateway] remains the sole source for engine metadata. The
-/// [services] container owns the single SQLite database and its repositories, so
-/// there is exactly one persistence stack for the whole process.
+/// The [EngineInfoGateway] provides static Rust core metadata (version, ABI,
+/// supported functionality). The [AudioEngineGateway] drives the live render
+/// engine. Both must be configured before [UamApp] is constructed.
+///
+/// [services] owns the single SQLite database and its repositories.
 ///
 /// [initialThemePreference], [initialReducedMotion], and [initialLaunchAtStartup]
 /// are read from the database during bootstrap and passed in so the very first
-/// frame already uses the persisted appearance. This avoids a visible flash from
-/// the default theme to the saved theme.
+/// frame already uses the persisted appearance.
 final class UamApp extends StatefulWidget {
   const UamApp({
     required this.engineInfoGateway,
+    this.audioEngineGateway,
     required this.services,
     this.initialThemePreference,
     this.initialReducedMotion,
@@ -30,6 +34,7 @@ final class UamApp extends StatefulWidget {
   });
 
   final EngineInfoGateway engineInfoGateway;
+  final AudioEngineGateway? audioEngineGateway;
   final UamServices services;
   final UamThemePreference? initialThemePreference;
   final bool? initialReducedMotion;
@@ -41,14 +46,18 @@ final class UamApp extends StatefulWidget {
 
 final class _UamAppState extends State<UamApp> {
   late final UamAppController _controller;
+  late final AudioEngineGateway _audioGateway;
   late final ValueNotifier<(ThemeMode, bool)> _chrome;
 
   @override
   void initState() {
     super.initState();
+    _audioGateway = widget.audioEngineGateway ?? FfiAudioEngineGateway();
+    final engine = EngineController(widget.engineInfoGateway, _audioGateway);
     _controller = UamAppController.fromServices(
-      engine: EngineController(widget.engineInfoGateway),
+      engine: engine,
       services: widget.services,
+      audioEngine: _audioGateway,
       initialThemePreference: widget.initialThemePreference,
       initialReducedMotion: widget.initialReducedMotion,
       initialLaunchAtStartup: widget.initialLaunchAtStartup,

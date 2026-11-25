@@ -14,8 +14,9 @@ import '../../../shared/models/equalizer_configuration.dart';
 
 /// Ten-band equalizer configuration editor.
 ///
-/// This page edits desired configuration. It does not claim active DSP
-/// processing and does not call the Rust audio path.
+/// This page edits desired configuration. Changes are debounced and sent to
+/// the live native DSP path when engine is available; UI still separates
+/// accepted configuration from verified render output.
 class EqualizerPage extends StatelessWidget {
   const EqualizerPage({super.key});
 
@@ -33,13 +34,13 @@ class EqualizerPage extends StatelessWidget {
           title: 'Equalizer',
           description:
               'Shape a ten-band configuration with validated preamp and gain '
-              'bounds. The response graph reflects the configuration; no live '
-              'audio stream is claimed.',
+              'bounds. Changes reach live DSP when native engine is available; '
+              'verified output remains separate.',
         ),
         const SizedBox(height: UamSpacing.lg),
         const UamNotice(
           tone: UamStatusTone.info,
-          title: 'Configuration only',
+          title: 'Live configuration handoff',
           message:
               'Sliders update the desired DSP configuration and the calculated '
               'response preview. Phase 1 does not attach this configuration to '
@@ -507,7 +508,7 @@ class _EqualizerRail extends StatelessWidget {
               ],
               Text(
                 'No live meter. Peak monitoring requires an audio stream and is '
-                'not implemented in Phase 1.',
+                'not available until a UAM-owned render stream is running.',
                 style: UamTypography.micro.copyWith(color: colors.textTertiary),
               ),
             ],

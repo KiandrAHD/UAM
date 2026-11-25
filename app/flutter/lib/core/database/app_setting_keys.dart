@@ -12,6 +12,9 @@ abstract final class AppSettingKeys {
   /// Launch-at-startup preference, a JSON boolean.
   static const String launchAtStartup = 'general.launchAtStartup';
 
+  /// Identifier of the selected Windows render endpoint.
+  static const String selectedOutputDeviceId = 'general.selectedOutputDeviceId';
+
   /// Identifier of the currently active preset, or removed when none.
   static const String activePresetId = 'preset.activeId';
 

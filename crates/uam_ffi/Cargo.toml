@@ -15,4 +15,5 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 serde.workspace = true
 serde_json.workspace = true
 uam_domain.workspace = true
+uam_audio.workspace = true
 uam_preset.workspace = true
