@@ -166,7 +166,7 @@ class _EngineControls extends StatelessWidget {
               OutlinedButton.icon(
                 key: const Key('engine-bypass'),
                 onPressed: () {
-                  unawaited(engine.setBypass(!bypassed));
+                  controller.equalizer.setBypassed(!bypassed);
                 },
                 icon: Icon(
                   bypassed ? Icons.volume_up : Icons.volume_off,

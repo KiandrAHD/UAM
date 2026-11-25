@@ -12,11 +12,11 @@ Status: **PARTIALLY COMPLETE**.
 
 ## Not verified or incomplete
 
-- Flutter does not yet bind new audio-engine FFI symbols; current device/equalizer controllers remain metadata/configuration-only.
-- Flutter diagnostics panel does not yet display live native metrics.
+- Flutter now binds audio-engine FFI symbols, drives live lifecycle controls, enumerates/selects endpoints, sends debounced EQ changes, and displays live native metrics or `Unavailable`.
+- Targeted controller/widget tests cover lifecycle, device selection, persistence, removal, rejection, bypass, diagnostics, and unavailable backend.
 - Manual EQ audible/frequency-response verification not recorded.
 - Endpoint switching/removal/reappearance hardware scenarios not recorded.
 - Flutter Windows debug build and packaged native library validation not run.
 - System-wide processing not implemented.
 
-Critical acceptance criteria therefore remain unverified. Do not label Phase 4 complete.
+Critical hardware acceptance criteria remain unverified. Status: PARTIALLY COMPLETE, not COMPLETE.

@@ -67,7 +67,9 @@ final class _DiagnosticsPageState extends State<DiagnosticsPage> {
           const SizedBox(height: UamSpacing.lg),
           UamNotice(
             tone: metrics == null ? UamStatusTone.info : UamStatusTone.success,
-            title: metrics == null ? 'No live measurements' : 'Live measurements',
+            title: metrics == null
+                ? 'No live measurements'
+                : 'Live measurements',
             message: metrics == null
                 ? 'Start a UAM-owned render stream to populate timing, level, '
                       'buffer, and error counters. Third-party system audio is '
@@ -79,44 +81,98 @@ final class _DiagnosticsPageState extends State<DiagnosticsPage> {
           UamResponsiveGrid(
             minTileWidth: 205,
             children: <Widget>[
-              _metric('Callback avg', _us(metrics?.callbackAverageUs),
-                  'Measured callback wall time'),
-              _metric('Callback p99', _us(metrics?.callbackP99Us),
-                  'Histogram estimate'),
-              _metric('Callback max', _us(metrics?.callbackMaxUs),
-                  'Measured maximum'),
-              _metric('CPU load', _percent(metrics?.loadPercent),
-                  'Callback / buffer period'),
-              _metric('Stream latency', _ms(metrics?.streamLatencyMs),
-                  'Reported by endpoint'),
-              _metric('Buffer', _frames(metrics?.bufferFrames),
-                  metrics == null
-                      ? 'Unavailable'
-                      : '${metrics.bufferDurationMs.toStringAsFixed(2)} ms'),
-              _metric('Peak input', _db(metrics?.peakInputDbfs),
-                  'Measured DSP input'),
-              _metric('Peak output', _db(metrics?.peakOutputDbfs),
-                  'Measured endpoint output'),
-              _metric('Limiter reduction', _db(metrics?.limiterReductionDb),
-                  'Measured limiter state'),
-              _metric('Frames rendered', _integer(metrics?.framesProcessed),
-                  'Total frames'),
-              _metric('Callbacks', _integer(metrics?.callbacks),
-                  'Total render callbacks'),
-              _metric('Underruns', _integer(metrics?.underruns),
-                  'Backend counter'),
-              _metric('Glitches', _integer(metrics?.glitches),
-                  'Backend counter'),
-              _metric('Deadline misses', _integer(metrics?.deadlineMisses),
-                  'Callback deadline counter'),
-              _metric('Clipped samples', _integer(metrics?.clippedSamples),
-                  'Output clamp counter'),
-              _metric('Non-finite samples', _integer(metrics?.nonFiniteSamples),
-                  'Output containment counter'),
-              _metric('Backend errors', _integer(metrics?.backendErrors),
-                  'Backend error counter'),
-              _metric('Device disconnects', _integer(metrics?.deviceDisconnects),
-                  'Endpoint change counter'),
+              _metric(
+                'Callback avg',
+                _us(metrics?.callbackAverageUs),
+                'Measured callback wall time',
+              ),
+              _metric(
+                'Callback p99',
+                _us(metrics?.callbackP99Us),
+                'Histogram estimate',
+              ),
+              _metric(
+                'Callback max',
+                _us(metrics?.callbackMaxUs),
+                'Measured maximum',
+              ),
+              _metric(
+                'CPU load',
+                _percent(metrics?.loadPercent),
+                'Callback / buffer period',
+              ),
+              _metric(
+                'Stream latency',
+                _ms(metrics?.streamLatencyMs),
+                'Reported by endpoint',
+              ),
+              _metric(
+                'Buffer',
+                _frames(metrics?.bufferFrames),
+                metrics == null
+                    ? 'Unavailable'
+                    : '${metrics.bufferDurationMs.toStringAsFixed(2)} ms',
+              ),
+              _metric(
+                'Peak input',
+                _db(metrics?.peakInputDbfs),
+                'Measured DSP input',
+              ),
+              _metric(
+                'Peak output',
+                _db(metrics?.peakOutputDbfs),
+                'Measured endpoint output',
+              ),
+              _metric(
+                'Limiter reduction',
+                _db(metrics?.limiterReductionDb),
+                'Measured limiter state',
+              ),
+              _metric(
+                'Frames rendered',
+                _integer(metrics?.framesProcessed),
+                'Total frames',
+              ),
+              _metric(
+                'Callbacks',
+                _integer(metrics?.callbacks),
+                'Total render callbacks',
+              ),
+              _metric(
+                'Underruns',
+                _integer(metrics?.underruns),
+                'Backend counter',
+              ),
+              _metric(
+                'Glitches',
+                _integer(metrics?.glitches),
+                'Backend counter',
+              ),
+              _metric(
+                'Deadline misses',
+                _integer(metrics?.deadlineMisses),
+                'Callback deadline counter',
+              ),
+              _metric(
+                'Clipped samples',
+                _integer(metrics?.clippedSamples),
+                'Output clamp counter',
+              ),
+              _metric(
+                'Non-finite samples',
+                _integer(metrics?.nonFiniteSamples),
+                'Output containment counter',
+              ),
+              _metric(
+                'Backend errors',
+                _integer(metrics?.backendErrors),
+                'Backend error counter',
+              ),
+              _metric(
+                'Device disconnects',
+                _integer(metrics?.deviceDisconnects),
+                'Endpoint change counter',
+              ),
             ],
           ),
           const SizedBox(height: UamSpacing.xl),
@@ -129,10 +185,16 @@ final class _DiagnosticsPageState extends State<DiagnosticsPage> {
                   subtitle: 'Backend-reported stream state',
                 ),
                 const SizedBox(height: UamSpacing.lg),
-                UamKeyValue(label: 'BACKEND', value: state.backendName ?? 'Unavailable'),
+                UamKeyValue(
+                  label: 'BACKEND',
+                  value: state.backendName ?? 'Unavailable',
+                ),
                 UamKeyValue(
                   label: 'ENDPOINT',
-                  value: state.activeEndpoint ?? state.selectedEndpoint ?? 'Unavailable',
+                  value:
+                      state.activeEndpoint ??
+                      state.selectedEndpoint ??
+                      'Unavailable',
                 ),
                 UamKeyValue(
                   label: 'FORMAT',
@@ -175,5 +237,6 @@ final class _DiagnosticsPageState extends State<DiagnosticsPage> {
       value == null ? 'Unavailable' : '${value.toStringAsFixed(2)} dBFS';
   static String _frames(int? value) =>
       value == null ? 'Unavailable' : '$value frames';
-  static String _integer(int? value) => value == null ? 'Unavailable' : '$value';
+  static String _integer(int? value) =>
+      value == null ? 'Unavailable' : '$value';
 }

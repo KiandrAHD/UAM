@@ -241,11 +241,11 @@ Connect the DSP engine to a real audio path on Windows.
 - Windows integration tests.
 
 ### Exit criteria
-- Audio passes through the selected path.
-- EQ changes are audible and measurable.
-- Device switching and disconnection do not crash the app.
-- Processing can be bypassed safely.
-- Scope of audio capture/routing is clearly communicated.
+- Audio passes through the selected path. **Rust automated WASAPI render test met; physical audibility not independently verified.**
+- EQ changes are audible and measurable. **Not verified on physical output.**
+- Device switching and disconnection do not crash the app. **Control-path handling implemented; physical hot-unplug not verified.**
+- Processing can be bypassed safely. **Rust/Dart control-path tests met; physical verification not run.**
+- Scope of audio capture/routing is clearly communicated. **Met: UAM-owned stream only, not system-wide.**
 
 ## 8. Phase 5 — Device and Bluetooth Capability Layer
 

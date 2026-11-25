@@ -28,8 +28,9 @@ class DashboardPage extends StatelessWidget {
           eyebrow: 'Control center',
           title: 'Audio workspace',
           description:
-              'Configure sound, inspect the local engine, and review capability '
-              'states. Nothing on this page claims live audio processing.',
+              'Configure sound, inspect the native engine, and review live '
+              'device and stream state. Verified output is shown only when the '
+              'core reports a running stream.',
           actions: <Widget>[
             if (MediaQuery.sizeOf(context).width > 760)
               UamIconButton(
@@ -51,11 +52,10 @@ class DashboardPage extends StatelessWidget {
         if (controller.devices.selected == null) ...<Widget>[
           UamNotice(
             tone: UamStatusTone.warning,
-            title: 'No audio device selected',
+            title: 'No audio endpoint selected',
             message:
-                'Device discovery is not implemented in Phase 1. The workspace '
-                'therefore shows unavailable device and endpoint states instead '
-                'of sample hardware.',
+                'Enumerate render endpoints in Device Manager and select one. '
+                'UAM renders and processes only the audio it generates itself.',
             action: TextButton(
               onPressed: () => _go(context, AppRoutes.deviceManager),
               child: const Text('Open devices'),
@@ -192,11 +192,10 @@ class _SelectedDeviceCard extends StatelessWidget {
           const SizedBox(height: UamSpacing.lg),
           Text(
             device == null
-                ? 'No native device adapter is available in this phase. '
-                      'Connect a device through a supported platform adapter in '
-                      'a later phase.'
-                : 'Metadata comes from the platform adapter. Battery, codec, and '
-                      'transport values remain hidden when not reported.',
+                ? 'No render endpoint is selected. Choose one in Device Manager '
+                      'before starting the stream.'
+                : 'Metadata comes from the native audio backend. Battery, codec, '
+                      'and transport values remain hidden when not reported.',
             style: UamTypography.description.copyWith(
               color: colors.textSecondary,
             ),
@@ -360,7 +359,7 @@ class _ProcessingCard extends StatelessWidget {
                 ? colors.success
                 : colors.warning,
           ),
-          const UamKeyValue(label: 'SCOPE', value: 'Configuration only'),
+          UamKeyValue(label: 'SCOPE', value: engineState.processingScope.label),
           UamKeyValue(
             label: 'VERIFIED OUTPUT',
             value: verified ? 'Verified' : 'Not verified',
@@ -375,10 +374,11 @@ class _ProcessingCard extends StatelessWidget {
           const SizedBox(height: UamSpacing.md),
           UamNotice(
             tone: verified ? UamStatusTone.success : UamStatusTone.info,
-            message:
-                'UAM is not attached to an audio output in Phase 1. This card '
-                'will report verified processing only when the Rust core and a '
-                'platform backend report an active stream.',
+            message: verified
+                ? 'The Rust core reports a running stream that has rendered '
+                      'frames on the selected endpoint.'
+                : 'UAM processes only its own app-owned stream. Start the '
+                      'stream in Audio Engine to produce verified output.',
           ),
           const SizedBox(height: UamSpacing.md),
           Align(
@@ -640,14 +640,18 @@ class _SystemHealthCard extends StatelessWidget {
           _HealthRow(
             icon: Icons.cable,
             label: 'Audio backend',
-            value: 'Not connected',
-            tone: UamStatusTone.muted,
+            value: state.backendName ?? 'Unavailable',
+            tone: state.backendName == null
+                ? UamStatusTone.muted
+                : UamStatusTone.success,
           ),
           _HealthRow(
             icon: Icons.devices,
             label: 'Device adapter',
-            value: 'Not implemented',
-            tone: UamStatusTone.planned,
+            value: controller.devices.isAvailable ? 'Available' : 'Unavailable',
+            tone: controller.devices.isAvailable
+                ? UamStatusTone.success
+                : UamStatusTone.muted,
           ),
           _HealthRow(
             icon: Icons.verified_outlined,

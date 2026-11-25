@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/state/uam_app_controller.dart';
@@ -28,8 +30,9 @@ class DeviceManagerPage extends StatelessWidget {
           eyebrow: 'Hardware',
           title: 'Device manager',
           description:
-              'Discover audio devices and inspect metadata only when a platform '
-              'adapter reports it. Capability claims carry provenance.',
+              'Enumerate active Windows render endpoints, inspect the reported '
+              'mix format, and choose the endpoint UAM renders to. Capability '
+              'claims carry provenance.',
           actions: <Widget>[
             FilledButton.icon(
               onPressed: deviceController.isScanning
@@ -43,7 +46,9 @@ class DeviceManagerPage extends StatelessWidget {
                     )
                   : const Icon(Icons.radar, size: 17),
               label: Text(
-                deviceController.isScanning ? 'Scanning...' : 'Scan devices',
+                deviceController.isScanning
+                    ? 'Scanning...'
+                    : 'Refresh endpoints',
               ),
             ),
           ],
@@ -51,18 +56,18 @@ class DeviceManagerPage extends StatelessWidget {
         const SizedBox(height: UamSpacing.lg),
         UamNotice(
           tone: UamStatusTone.info,
-          title: 'Discovery is capability-gated',
+          title: 'Application-owned output',
           message:
-              'UAM distinguishes audio endpoint discovery from Bluetooth radio '
-              'scanning. Pairing a device does not grant metadata, battery, ANC, '
-              'transparency, or touch-control access.',
+              'UAM enumerates native render endpoints and renders its own '
+              'app-owned stream to the selected one. It does not capture or '
+              'modify audio from other applications.',
         ),
         const SizedBox(height: UamSpacing.xl),
         LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth > 1000;
             final primary = _PrimaryColumn(controller: controller);
-            final permissions = const _PermissionPanel();
+            final permissions = const _BackendPanel();
             if (!wide) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -113,11 +118,11 @@ class _PrimaryColumn extends StatelessWidget {
                     ? 'Connected device'
                     : selected.displayName,
                 subtitle: selected == null
-                    ? 'No device is connected through a verified adapter'
+                    ? 'No render endpoint is selected'
                     : 'Connection state: ${selected.connectionState.label}',
                 trailing: selected == null
                     ? const CapabilityBadge(
-                        label: 'No adapter',
+                        label: 'No selection',
                         tone: UamStatusTone.muted,
                       )
                     : UamStatus(
@@ -131,17 +136,17 @@ class _PrimaryColumn extends StatelessWidget {
               if (selected == null)
                 UamEmptyState(
                   icon: Icons.headset_off_outlined,
-                  title: 'No connected device',
+                  title: 'No endpoint selected',
                   description:
-                      'Native device discovery and connection handling are not '
-                      'implemented in Phase 1. No sample device or battery value '
-                      'is displayed.',
+                      'Refresh endpoints and select one. UAM shows only what the '
+                      'native audio backend reports; no sample device is '
+                      'displayed.',
                   action: OutlinedButton.icon(
                     onPressed: deviceController.isScanning
                         ? null
                         : () => deviceController.refresh(),
                     icon: const Icon(Icons.radar, size: 17),
-                    label: const Text('Scan for devices'),
+                    label: const Text('Refresh endpoints'),
                   ),
                 )
               else
@@ -156,7 +161,7 @@ class _PrimaryColumn extends StatelessWidget {
             children: <Widget>[
               const UamSectionHeader(
                 title: 'Available devices',
-                subtitle: 'Only results returned by a platform adapter',
+                subtitle: 'Active render endpoints reported by the backend',
               ),
               const SizedBox(height: UamSpacing.lg),
               if (deviceController.isScanning)
@@ -189,14 +194,14 @@ class _PrimaryColumn extends StatelessWidget {
                       : 'No devices found',
                   description:
                       snapshot.reason ??
-                      'No platform adapter returned any audio devices. Empty is '
-                          'not the same as unsupported.',
+                      'The native backend returned no active render endpoints. '
+                          'Empty is not the same as unsupported.',
                   action: OutlinedButton.icon(
                     onPressed: deviceController.isScanning
                         ? null
                         : () => deviceController.refresh(),
                     icon: const Icon(Icons.refresh, size: 17),
-                    label: const Text('Scan again'),
+                    label: const Text('Refresh endpoints'),
                   ),
                 )
               else
@@ -206,7 +211,9 @@ class _PrimaryColumn extends StatelessWidget {
                       _AvailableDeviceRow(
                         device: device,
                         selected: selected?.id == device.id,
-                        onSelect: () => deviceController.selectDevice(device),
+                        onSelect: () {
+                          unawaited(deviceController.selectDevice(device));
+                        },
                       ),
                   ],
                 ),
@@ -264,6 +271,8 @@ class _DeviceDetail extends StatelessWidget {
     final metadata = <(String, String)>[
       ('TYPE', device.type.label),
       ('TRANSPORT', device.transport.label),
+      if (device.isDefault) ('DEFAULT', 'Yes'),
+      if (device.formatSummary != null) ('FORMAT', device.formatSummary!),
       if (device.transportVersion != null)
         ('TRANSPORT VERSION', device.transportVersion!),
       if (device.codec != null) ('CODEC', device.codec!),
@@ -368,6 +377,8 @@ class _AvailableDeviceRow extends StatelessWidget {
   final bool selected;
   final VoidCallback onSelect;
 
+  bool get selectable => device.isConnected;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.uamColors;
@@ -377,7 +388,7 @@ class _AvailableDeviceRow extends StatelessWidget {
         color: selected ? colors.infoOverlay : colors.surfaceSecondary,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
-          onTap: onSelect,
+          onTap: selectable ? onSelect : null,
           borderRadius: BorderRadius.circular(10),
           child: Container(
             constraints: const BoxConstraints(minHeight: 56),
@@ -408,16 +419,28 @@ class _AvailableDeviceRow extends StatelessWidget {
                       ),
                       Text(
                         '${device.type.label} · ${device.transport.label} · '
-                        '${device.connectionState.label}',
+                        '${device.connectionState.label}'
+                        '${device.isDefault ? ' · Default' : ''}',
                         style: UamTypography.micro.copyWith(
                           color: colors.textTertiary,
                         ),
                       ),
+                      if (device.formatSummary != null)
+                        Text(
+                          device.formatSummary!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: UamTypography.micro.copyWith(
+                            color: colors.textTertiary,
+                          ),
+                        ),
                     ],
                   ),
                 ),
                 Text(
-                  selected ? 'SELECTED' : 'SELECT',
+                  selected
+                      ? 'SELECTED'
+                      : (device.isDefault ? 'DEFAULT' : 'SELECT'),
                   style: UamTypography.badge.copyWith(
                     color: selected ? colors.accent : colors.textTertiary,
                   ),
@@ -431,28 +454,25 @@ class _AvailableDeviceRow extends StatelessWidget {
   }
 }
 
-class _PermissionPanel extends StatelessWidget {
-  const _PermissionPanel();
+class _BackendPanel extends StatelessWidget {
+  const _BackendPanel();
 
   @override
   Widget build(BuildContext context) {
     final controller = UamAppScope.of(context);
     final colors = context.uamColors;
+    final available = controller.devices.isAvailable;
     return UamCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(
-                Icons.shield_outlined,
-                size: 18,
-                color: colors.textSecondary,
-              ),
+              Icon(Icons.cable_outlined, size: 18, color: colors.textSecondary),
               const SizedBox(width: UamSpacing.md),
               Expanded(
                 child: Text(
-                  'Bluetooth access',
+                  'Render backend',
                   style: UamTypography.cardTitle.copyWith(
                     color: colors.textPrimary,
                   ),
@@ -461,9 +481,9 @@ class _PermissionPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: UamSpacing.md),
-          const CapabilityBadge(
-            label: 'Not implemented',
-            tone: UamStatusTone.planned,
+          CapabilityBadge(
+            label: available ? 'Available' : 'Unavailable',
+            tone: available ? UamStatusTone.success : UamStatusTone.muted,
           ),
           const SizedBox(height: UamSpacing.lg),
           Text(
@@ -474,25 +494,24 @@ class _PermissionPanel extends StatelessWidget {
           ),
           const SizedBox(height: UamSpacing.md),
           Text(
-            'No permission prompt is issued in Phase 1. When an adapter is '
-            'added, denial, permanent denial, and platform-unsupported states '
-            'must remain separate.',
+            'UAM processes only audio it renders itself. System-wide capture '
+            'would require a virtual audio device or an audio processing object, '
+            'which is not part of this build.',
             style: UamTypography.micro.copyWith(color: colors.textTertiary),
           ),
-          const SizedBox(height: UamSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: null,
-              icon: const Icon(Icons.settings_outlined, size: 16),
-              label: const Text('Manage permissions'),
+          if (controller.devices.selectionError != null) ...<Widget>[
+            const SizedBox(height: UamSpacing.lg),
+            UamNotice(
+              tone: UamStatusTone.warning,
+              title: 'Selection notice',
+              message: controller.devices.selectionError!,
             ),
-          ),
+          ],
           const SizedBox(height: UamSpacing.lg),
           Divider(color: colors.border, height: 1),
           const SizedBox(height: UamSpacing.lg),
           Text(
-            'CAPABILITY VOCABULARY',
+            'ENDPOINT STATES',
             style: UamTypography.technicalLabel.copyWith(
               color: colors.textTertiary,
             ),
@@ -502,18 +521,18 @@ class _PermissionPanel extends StatelessWidget {
             spacing: UamSpacing.sm,
             runSpacing: UamSpacing.sm,
             children: <Widget>[
-              CapabilityBadge(label: 'Available', tone: UamStatusTone.success),
-              CapabilityBadge(label: 'Permission', tone: UamStatusTone.warning),
-              CapabilityBadge(label: 'Unsupported', tone: UamStatusTone.muted),
-              CapabilityBadge(label: 'Planned', tone: UamStatusTone.planned),
+              CapabilityBadge(label: 'Active', tone: UamStatusTone.success),
+              CapabilityBadge(label: 'Disabled', tone: UamStatusTone.warning),
+              CapabilityBadge(label: 'Unplugged', tone: UamStatusTone.muted),
+              CapabilityBadge(label: 'Not present', tone: UamStatusTone.muted),
               CapabilityBadge(label: 'Unknown', tone: UamStatusTone.muted),
               CapabilityBadge(label: 'Error', tone: UamStatusTone.error),
             ],
           ),
           const SizedBox(height: UamSpacing.md),
           Text(
-            'Unsupported, unknown, disconnected, and permission-gated features '
-            'never render an actionable control.',
+            'Only active endpoints can be selected for rendering. Disconnected '
+            'or unknown states never render as selectable.',
             style: UamTypography.micro.copyWith(color: colors.textTertiary),
           ),
         ],

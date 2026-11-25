@@ -18,7 +18,9 @@ FFI exposes opaque engine handles and JSON envelopes for create/destroy/status/e
 - `cargo clippy --workspace --all-targets --locked -- -D warnings`: PASS
 - `cargo test --workspace --locked`: PASS on current Windows environment
 - Real WASAPI test: PASS; 48 kHz, stereo, float32, 1056-frame buffer, 14,976 frames, 30 callbacks, peak -40 dBFS. Audible physical output was not independently documented by this automated test.
-- Flutter native audio UI/bridge integration: not complete in this working tree. Existing Flutter screens still use Phase 1 metadata-only controllers.
+- Flutter `AudioEngineGateway`, real FFI implementation, controller lifecycle, endpoint repository, EQ handoff, live diagnostics page, and widget/controller tests: PASSing static analysis and targeted tests.
+- Full Flutter test suite: 190 tests PASS.
+- Full Flutter Windows debug build and packaged DLL launch: NOT RUN.
 
 ## Scope and limitations
 
