@@ -24,7 +24,8 @@ Every ADR uses these sections:
 | [ADR-004](ADR-004-local-first-data.md) | Local-first data and portable preset interchange | Accepted (Phase 0) |
 | [ADR-005](ADR-005-capability-based-controls.md) | Capability-based hardware controls | Accepted (principle) |
 | [ADR-006](ADR-006-windows-first-mvp.md) | Windows-first audio integration | Proposed |
-| [ADR-007](ADR-007-real-time-configuration-handoff.md) | Real-time DSP configuration hand-off | Proposed (design only; implementation deferred) |
+| [ADR-007](ADR-007-real-time-configuration-handoff.md) | Real-time DSP configuration hand-off | Accepted for Phase 4 callback host |
+| [ADR-008](ADR-008-windows-wasapi-shared-render.md) | Windows WASAPI shared-mode render backend | Accepted for application-owned audio |
 
 ## Naming note
 
