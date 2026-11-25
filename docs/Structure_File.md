@@ -88,8 +88,49 @@ app/flutter/
     └── integration/
 ```
 
-Not present yet: `features/audio_lab/`, SQLite storage, real platform audio
-adapters, device adapters, Bluetooth scanning, and native file picking.
+Not present yet: `features/audio_lab/`, Bluetooth scanning, and native file
+picking on mobile.
+
+---
+
+## Phase 4 actual structure additions (Windows audio integration)
+
+```text
+crates/
+├── uam_audio/src/
+│   ├── backend.rs                     (backend trait, open request, running stream)
+│   ├── config.rs                      (StreamFormat, DspRequest, TestToneConfig)
+│   ├── device.rs                      (normalized endpoint model, device events)
+│   ├── engine.rs                      (control-side state machine + recovery)
+│   ├── error.rs                       (typed AudioErrorCode set)
+│   ├── format.rs                      (f32 / PCM16 / PCM24 / PCM32 boundary conversion)
+│   ├── host.rs                        (real-time DspHost, crossfade, bypass smoothing)
+│   ├── metrics.rs                     (atomic audio-thread metrics)
+│   ├── tone.rs                        (click-free diagnostic sine source)
+│   ├── stub.rs                        (truthful non-Windows fallback)
+│   └── windows/
+│       ├── com.rs                     (scoped COM apartment)
+│       ├── device.rs                  (MMDevice enumeration + mix-format parsing)
+│       ├── notification.rs            (IMMNotificationClient adapter)
+│       ├── render.rs                  (event-driven shared-mode render stream)
+│       └── mod.rs                     (WASAPI backend implementation)
+├── uam_audio/tests/wasapi_render.rs   (real default-endpoint render test)
+└── uam_ffi/src/engine.rs              (opaque handles + JSON envelope control API)
+
+app/flutter/lib/
+├── bridge/generated/uam_ffi_bindings.dart   (typed ABI bindings for engine calls)
+├── platform/audio/
+│   ├── audio_engine_gateway.dart            (gateway interface + JSON models)
+│   └── ffi_audio_engine_gateway.dart        (real FFI implementation)
+├── features/audio_engine/application/engine_controller.dart
+├── features/device_manager/data/device_repository.dart
+└── features/diagnostics/presentation/diagnostics_page.dart
+
+docs/
+├── adr/ADR-008-windows-wasapi-shared-render.md
+├── platform/WINDOWS_AUDIO.md
+└── testing/WINDOWS_AUDIO_TESTING.md
+```
 
 ---
 
@@ -493,7 +534,10 @@ Rust workspace. Each crate has a narrow responsibility and explicit dependency d
 Contains signal-processing algorithms. It should not depend on Flutter, SQLite, or UI state.
 
 ### `crates/uam_audio/`
-Contains audio graph and backend abstractions. Platform-specific implementation details should be isolated.
+Contains audio graph and backend abstractions. The platform-independent stream
+lifecycle, format conversion, real-time DSP host, metrics, and diagnostic tone
+live here; the WASAPI implementation is isolated in `windows/` behind the
+`AudioBackend` trait.
 
 ### `crates/uam_device/`
 Contains normalized device and capability models, discovery orchestration, and adapter registration.

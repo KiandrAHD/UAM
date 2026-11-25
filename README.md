@@ -43,11 +43,13 @@ UAM is a monorepo that combines:
 - **Documentation** (PRD, roadmap, architecture, ADRs, per-platform notes, and
   phase reports) under `docs/`.
 
-The Flutter app reports structured metadata from the compiled Rust core. It
-explicitly reports a processing scope of `configuration_only`: UAM does not yet
-perform system-wide equalization, live device discovery, or hardware control.
-Device and hardware UI stays unavailable until a verified platform adapter
-reports capability evidence.
+The Flutter app reports structured metadata from the compiled Rust core and
+controls a native Windows WASAPI shared-mode render stream. UAM enumerates real
+active render endpoints, applies DSP to its own app-owned diagnostic stream, and
+reports live callback metrics. UAM does **not** perform system-wide equalization
+or modify audio produced by other applications; that requires a virtual audio
+device, APO, or equivalent future integration. Physical EQ audibility and
+endpoint hot-unplug acceptance remain hardware-verification items.
 
 ### Current status
 
@@ -55,11 +57,12 @@ reports capability evidence.
 |---|---|
 | **Phase 0** — discovery and technical validation | Complete, with documented platform blockers |
 | **Phase 1** — foundation and UX (shell, design system, modules) | Implemented and validated in the available Flutter/Rust test environment |
-| **Phase 2.1–2.3, 2.6** — DSP core (config, EQ, limiter, metering, pipeline, benchmarks) | Implemented and tested; no live audio callback yet |
-| **Phase 2.7** — repository stabilization and Android CI repair | Android CI failure root-caused and fixed (obsolete `tools` package); cross-compilation, symbols, and APK re-verified locally; device/CI validation deferred |
-| **Phase 3** — local data and preset exchange | Implemented and locally validated: SQLite persistence, preset CRUD, settings persistence, preset import/export, and backup/restore. Windows CI build and device validation remain pending. |
-| **Android** — platform support and Rust FFI packaging | Implemented; a debug APK builds locally and contains `lib/arm64-v8a/libuam_ffi.so`. Not device-validated |
-| **Audio backend / system-wide processing** | Not implemented. Processing scope is `configuration_only` |
+| **Phase 2.1–2.3, 2.6** — DSP core (config, EQ, limiter, metering, pipeline, benchmarks) | Implemented and tested |
+| **Phase 2.7** — repository stabilization and Android CI repair | Android CI failure root-caused and fixed; device/CI validation deferred |
+| **Phase 3** — local data and preset exchange | Implemented and locally validated: SQLite persistence, preset CRUD, settings persistence, preset import/export, and backup/restore |
+| **Phase 4** — Windows audio integration | **Partially complete:** real WASAPI shared render, endpoint enumeration/selection, lifecycle, Rust DSP host, FFI, Flutter controls, diagnostics, and tests implemented; physical EQ audibility, hot-unplug, and packaged Windows launch not verified |
+| **Android** — platform support and Rust FFI packaging | Implemented for FFI packaging; no Android real-time audio backend |
+| **System-wide processing** | Not implemented. UAM processes only its own app-owned stream; processing scope is never system-wide |
 
 Recorded Phase 3 validation on the reference host: Rust format, clippy, and
 tests pass; Flutter format and analysis pass; all 190 Flutter tests pass; and

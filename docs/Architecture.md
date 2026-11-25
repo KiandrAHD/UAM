@@ -436,14 +436,19 @@ network layers unimplemented.
 - **Design system:** typed tokens and a `ThemeExtension` provide dark, light, and
   system appearance. The dark palette comes from `design_uam.md`; the light
   palette is a documented derivative.
-- **Bridge:** `EngineInfoGateway`, `RustApi`, and ABI `1` are unchanged. The
-  reported scope remains `configuration_only`.
+- **Bridge:** `EngineInfoGateway`/`RustApi` provide static core metadata. The
+  `AudioEngineGateway` binds opaque Rust engine handles through JSON envelopes;
+  no audio frames cross Dart FFI. Windows reports `app_owned_stream` only while
+  the UAM-owned render stream is attached, otherwise `configuration_only`.
 - **Presets:** `.uam-preset.json` schema v1 is parsed by a strict Dart mirror and
   exercised against repository fixtures. There is no FFI preset-validation
   symbol yet, so Rust validation is not claimed.
-- **Not implemented:** SQLite tables from §7, the audio pipeline from §5, real
-  device discovery from §6, and any network service. Their interfaces remain
-  future work.
+- **Implemented in Phase 4:** Windows endpoint enumeration/selection, shared-mode
+  WASAPI render lifecycle, Rust DSP host, format conversion, atomic metrics,
+  endpoint notifications, FFI engine control, Flutter endpoint controls, and
+  diagnostics. Physical hardware acceptance remains separate from automated tests.
+- **Not implemented:** system-wide audio capture/interception, virtual driver/APO,
+  and any network service.
 
 See `docs/PHASE_1_REPORT.md` for the test evidence and explicit limitations.
 
@@ -559,6 +564,49 @@ persistence and platform-service boundaries and does not touch the audio path.
   integrity and equivalence checks.
 - **Platform file access.** File pick/save is behind `PresetFileGateway`, so the
   domain layer never calls a platform channel and widget tests inject a fake.
-- **Not implemented:** audio backend, device discovery, cloud sync, and Rust-side
-  preset validation. See `docs/PHASE_3_IMPLEMENTATION_REPORT.md` and
-  `docs/PHASE_3_READINESS.md`.
+- **Not implemented (Phase 3 scope):** audio backend, device discovery, cloud
+  sync, and Rust-side preset validation. See `docs/PHASE_3_IMPLEMENTATION_REPORT.md`
+  and `docs/PHASE_3_READINESS.md`.
+
+## 20. Phase 4 implementation notes
+
+Phase 4 adds the first real audio path on Windows. It is deliberately limited to
+audio UAM owns.
+
+- **Backend (ADR-008).** `uam_audio::windows` is the only platform adapter. It
+  enumerates active `eRender` MMDevice endpoints, opens an event-driven WASAPI
+  shared-mode `IAudioClient` with the endpoint mix format, and runs a producer
+  thread that writes rendered buffers.
+- **Signal path.** Generated sine test source -> `DspHost` (`DspPipeline`:
+  preamp, EQ bands, limiter) -> boundary format conversion (`f32`, PCM16, packed
+  PCM24, PCM32) -> WASAPI render buffer -> selected endpoint.
+- **Scope honesty.** `AudioEngine::status` reports `app_owned_stream` only while a
+  stream is attached and `configuration_only` otherwise. There is no code path
+  that claims system-wide processing; capture/interception does not exist.
+- **Real-time rules.** `DspHost` performs no allocation, locking, logging, or I/O
+  in the callback. Configuration crosses through a bounded hand-off applied at a
+  block boundary (ADR-007); bypass uses an atomic flag with a smoothed crossfade,
+  so enabling bypass never stops audio and never clicks.
+- **Lifecycle.** `start` opens and starts; `stop` signals, drains, joins the
+  producer, and releases native handles. Endpoint invalidation is surfaced through
+  atomic counters and control-side bounded recovery (original endpoint first, then
+  the default endpoint).
+- **Metrics.** Callback duration (measured, plus a histogram p99 estimate), peak
+  in/out, limiter reduction, clipping, non-finite containment, glitches, underruns,
+  deadline misses, restarts, and endpoint disconnects are atomic stores only. The
+  UI prints `Unavailable` for anything the core never observed.
+- **FFI.** `uam_audio_engine_*` exports take an opaque `u64` handle and return one
+  owned JSON envelope (`{ok, error, data}`) freed with `uam_string_free`. Panics
+  are caught and converted into an `internal` error envelope; no Rust type crosses
+  the ABI.
+- **Flutter.** `AudioEngineGateway` is the boundary. `FfiAudioEngineGateway`
+  implements it over the C ABI, and tests inject a deterministic fake.
+  `EngineController` merges core metadata with live status; `DeviceController` +
+  `EngineDeviceRepository` own endpoint enumeration and persisted selection;
+  `EqualizerController` changes are debounced and pushed to the native DSP.
+- **Not implemented:** system-wide capture, virtual audio device, APO, capture of
+  third-party application audio, and any Android real-time backend.
+- **Verification limits.** Automated Rust tests exercise a real default endpoint
+  when one exists. Physical audibility, EQ frequency-response measurement on
+  hardware, endpoint hot-unplug, and the packaged Windows launch are recorded as
+  `NOT VERIFIED` in `docs/PHASE_4_READINESS.md`.

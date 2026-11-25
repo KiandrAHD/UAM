@@ -93,6 +93,16 @@ install(DIRECTORY "${NATIVE_ASSETS_DIR}"
    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
    COMPONENT Runtime)
 
+# Copy the pre-built Rust FFI library next to the executable when it has been
+# produced by scripts/build/build_rust.ps1. The app loads it at runtime; without
+# this the packaged bundle cannot resolve uam_ffi.dll.
+set(UAM_NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/runner/native")
+if(EXISTS "${UAM_NATIVE_DIR}/uam_ffi.dll")
+  install(FILES "${UAM_NATIVE_DIR}/uam_ffi.dll"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()
+
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.
 set(FLUTTER_ASSET_DIR_NAME "flutter_assets")

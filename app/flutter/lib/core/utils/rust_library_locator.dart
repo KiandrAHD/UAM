@@ -59,6 +59,14 @@ abstract final class RustLibraryLocator {
       'macos' => AppConstants.macosNativeLibraryName,
       _ => AppConstants.linuxNativeLibraryName,
     };
+    // A packaged desktop bundle keeps the library beside the executable, or in
+    // a `native` subdirectory next to it.
+    if (!Platform.isAndroid) {
+      final executableDir = File(Platform.resolvedExecutable).parent.path;
+      final separator = Platform.pathSeparator;
+      yield '$executableDir$separator$bundleName';
+      yield '$executableDir${separator}native$separator$bundleName';
+    }
     final relativeDirectories = <String>[
       '.',
       'crates/target/debug',
